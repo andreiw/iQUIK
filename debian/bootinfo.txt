@@ -1,0 +1,5 @@
+<chrp-boot>
+	<description>Debian GNU/Linux PowerPC Quik Bootloader</description>
+	<os-name>Debian GNU/Linux PowerPC</os-name>
+	<boot-script>boot &device:\ppc\second</boot-script>
+</chrp-boot>

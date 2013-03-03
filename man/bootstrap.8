@@ -1,0 +1,99 @@
+.\" bootstrap - Description of the disk boot process for Powermacs
+.TH bootstrap 8 "16 March 1997" "" "PowerMac/Linux"
+.SH NAME
+bootstrap \- Disk boot process for PowerMac/Linux
+.SH DESCRIPTION
+The process of booting PowerMac/Linux from a disk starts with Open
+Firmware loading the boot block from the first bootable partition of
+the boot disk into memory.  The user specifies which device is to be
+the boot disk by setting the \fBboot-device\fR environment variable to
+the Open Firmware name of the boot disk, or by giving it as an
+explicit argument to the Open Firmware \fBboot\fR command.
+
+Open Firmware then transfers control to the first-stage bootstrap
+(\fBfirst.b\fR), located at the beginning of the boot block.  The boot
+block also contains the list of block numbers for the second-stage
+bootstrap.  \fBFirst.b\fR reads these blocks into memory, thus loading
+the second-stage bootstrap.
+
+The task of the second-stage bootstrap (\fBsecond.b\fR) is to load the
+Linux kernel into memory and pass it any arguments given by the user.
+\fBSecond.b\fR can also be used for loading other programs, such as
+diagnostic programs or other operating systems, as long as they are
+present as an ELF binary in an ext2 filesystem.
+
+\fBSecond.b\fR gets two string values from Open Firmware,
+called \fIbootpath\fR and \fIbootargs\fR.  \fIBootpath\fR is the Open
+Firmware name of the boot disk (i.e., the device that the first-stage
+bootstrap was loaded from).  If Open Firmware auto-booted, or if the
+\fBboot\fR command was given without arguments, then \fIbootpath\fR
+and \fIbootargs\fR are set to the values of the \fBboot-device\fR and
+\fBboot-file\fR variables, respectively.  If the \fBboot\fR command
+was given with arguments, the first argument becomes \fIbootpath\fR
+and any subsequent arguments are saved in \fIbootargs\fR.
+
+\fBSecond.b\fR uses the Open Firmware input and output devices for
+communicating with the user.  By default, the modem port is used for
+both, but this can be changed by setting the Open Firmware
+\fBinput-device\fR and \fBoutput-device\fR variables.
+
+\fBSecond.b\fR starts by printing a message to indicate
+that it has started, and then reads the configuration file.  By
+default, the configuration file is \fB/etc/quik.conf\fR on the same
+partition as the boot block, but this can be overridden with quik(1).
+The configuration file must be on the same disk as the boot block.
+The format of the configuration file is described in quik.conf(5).
+
+Then \fBsecond.b\fR prints its \fBboot:\fR prompt and waits for the
+user to type a command line.  Normally the configuration file
+specifies a timeout, and if the user does not type anything within
+that period of time, \fBsecond.b\fR proceeds using the \fIbootargs\fR
+value as the command line.  If the timeout value is 0, \fBsecond.b\fR
+will always use the \fIbootargs\fR value, ignoring anything the user
+types.  This can be useful when a modem is connected to the
+modem port.
+
+Having obtained a command line, \fBsecond.b\fR takes the first word
+(whitespace-separated) as the name of the program to load.  Any
+remaining words on the line become arguments to be passed to the
+program when it is loaded.  If the command line is empty,
+\fBsecond.b\fR uses the value of the \fBdefault\fR keyword in the
+configuration file, or failing that, the first program specified in
+the configuration file.
+
+The configuration file can specify several alternative programs to
+load (referred to as \fIimages\fR in the configuration file syntax),
+along with shorthand labels for them and extra arguments to be
+prepended to those specified by the user.  The program name given in
+the command line can be either an explicit path name or a shorthand
+label.  If it is a shorthand label, the configuration file gives the
+corresponding path name.
+
+Path names are of the form
+
+.RS
+.RI [ device\fB: ][ partno ]\fB/ filepath
+.RE
+
+where \fIdevice\fR is the Open Firmware name of the disk, \fIpartno\fR
+is the (decimal) number of the partition on that disk, and
+\fIfilepath\fR is the path to the file in the ext2 filesystem on that
+partition.  The default for \fIdevice\fR is \fIbootpath\fR, and the
+default for \fIpartno\fR is the first bootable partition on
+\fIdevice\fR.  Alternatively, the \fB/\fIfilepath\fR section can be
+replaced by a span of 512-byte blocks to load using the syntax
+.BI [ start - end ]
+where \fIstart\fR and \fIend\fR are decimal block numbers.
+
+\fBSecond.b\fR will attempt to open the file identified by the path
+name and load it into memory as an ELF binary.  If the file cannot be
+found, or if it is not an ELF binary, \fBsecond.b\fR will print an
+error message and print its \fBboot:\fR prompt again.  In this case
+there is no timeout and \fBsecond.b\fR does not use the \fIbootargs\fR
+value.
+
+Once \fBsecond.b\fR has loaded the program into memory, it transfers
+control to it, passing it the list of arguments.
+
+.SH SEE ALSO
+.I quik(8), quik.conf(5)

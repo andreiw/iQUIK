@@ -1,0 +1,89 @@
+.\" quik - Powermac/Linux disk bootstrap installer
+.TH quik 8 "16 March 1997" "" "PowerMac/Linux"
+.SH NAME
+quik \- Install disk bootstrap for PowerMac/Linux
+.SH SYNOPSIS
+.B /sbin/quik
+.RB [ \-b\ \fIsecond-stage\fB ]
+.RB [ \-C\ \fIconfig-file\fB ]
+.RB [ \-f ]
+.RB [ \-i\ \fIfirst-stage\fB ]
+.RB [ \-r\ \fIroot-path\fB ]
+.RB "[ [" \-s | \-S ] \ \fIbackup ]
+.RB [ \-v ]
+.RB [ \-V ]
+.SH DESCRIPTION
+.B Quik
+installs a disk bootstrap on a partition, enabling Linux to be booted
+from that partition.  Specifically, it writes the first-stage
+bootstrap together with a table of block numbers to the first 1024
+bytes of the partition (the
+.IR boot\ block ),
+and modifies the entry for the partition in
+the partition table to make the partition bootable.
+
+.B Quik
+creates the table of block numbers by finding out where on the disk
+the blocks of the second-stage bootstrap are stored.  It then writes
+these block numbers into the boot block so that the first-stage
+bootstrap can load the second-stage bootstrap without having to
+incorporate ext2 filesystem code.  The second-stage bootstrap file
+must therefore be on the same disk as the boot block (although it need
+not be on the same partition), and if the second-stage bootstrap file
+is subsequently moved or replaced, quik must be re-run to update the
+block number table.
+
+.SH OPTIONS
+.TP
+.TP
+.B \-b \fIsecond-stage
+Use \fIsecond-stage\fR as the second-stage boot image, instead of the
+default \fB/boot/second.b\fR.  The second-stage boot image must be on
+the same disk as the boot block, though not necessarily on the same
+partition.
+.TP
+.B \-C \fIconfig-file
+Record \fIconfig-file\fR as the name of the configuration file for the
+second-stage bootstrap to use, instead of the default
+\fB/etc/quik.conf\fR.  The configuration file must be on the same disk
+as the boot block, though not necessarily on the same partition.
+.B \-f
+Force installation of first-stage bootstrap, even if the version
+number currently in the boot block matches quik's current version.
+.TP
+.B \-i \fIfirst-stage
+Use \fIfirst-stage\fR as the first-stage boot image, instead of the
+default \fB/boot/first.b\fR.
+.TP
+.B \-r \fIroot-path
+Install the boot block on the partition on which \fIroot-path\fR is
+mounted.  The default is the root partition.  With this option, quik
+will by default use the first and second stage bootstraps found in
+\fIroot-path\fB/boot\fR, and the default configuration file name will
+be \fIroot-path\fB/etc/quik.conf\fR.
+.TP
+.B \-S \fIbackup
+Save a copy of the current boot block in
+.IR backup .
+.TP
+.B \-s \fIbackup
+Save a copy of the current boot block in \fIbackup\fR if it does not
+already exist.  By default, quik will save a copy of the current boot
+block in \fB/boot/old.b\fR if that file does not already exist.
+.TP
+.B \-v
+Verbose mode: print messages indicating what quik is doing.
+.TP
+.B \-V
+Print quik's version number and exit.
+.SH FILES
+.nf
+/boot/first.b
+/boot/second.b
+/etc/quik.conf
+.fi
+.SH AUTHORS
+Paul Mackerras, based on the Sparc bootstrap installation program by
+Maurizio Plaza and Jakub Jelinek.
+.SH SEE ALSO
+.I quik.conf(5), bootstrap(8)

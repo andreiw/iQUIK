@@ -1,0 +1,137 @@
+.\" quik.conf - description of the format of the /etc/quik.conf file
+.TH quik.conf 5 "19 March 1997" "" "PowerMac/Linux"
+.SH NAME
+quik.conf \- Configuration file for PowerMac/Linux disk bootstrap
+.SH DESCRIPTION
+The \fB/etc/quik.conf\fR file is read by the second-stage bootstrap
+(see bootstrap(8)).  It allows the user to customize various aspects
+of the second-stage bootstrap's behaviour, and to specify various
+programs (referred to in the configuration file as \fIimages\fR) which
+can be booted using just a shorthand label.  (Other programs not
+listed in the configuration file can also be booted, but the user must
+enter the path name for the program rather than just a shorthand
+label.)
+
+The configuration file is parsed into tokens separated by white space
+or the equals sign.  Comments begin with a hash character and continue
+to the end of the line.  Words containing whitespace or other special
+characters should be surrounded by double quotes, or the special characters
+should be quoted by preceding them with a backslash.
+
+The configuration file is structured as a list of global options,
+followed by a list of images, each of which can have local options.
+Local options are used when the corresponding image is booted, and
+override the global options.  Each \fBimage\fR option in the
+configuration file defines a new image, and options between that and
+the next \fBimage\fR option are local options for that image.  Options
+before the first \fBimage\fR option are global options.
+
+There are two kinds of options: flag options and string options.  Flag
+options are specified simply by giving the option name.  String
+options are specified by giving the option name, an equals sign, and
+the value (as a single token).  Whitespace around the equals sign is
+ignored.
+
+.SH OPTIONS
+.TP
+.BI device= path
+Specifies the Open Firmware name of the default disk to use if no
+explicit device name is given in the image path.  If this is not
+specified, the boot device (the device from which Open Firmware loaded
+the first-stage bootstrap) is used.
+.TP
+.BI partition= partno
+Specifies which partition to use if no explicit partition number is
+given in the image path.  If this is not specified, the default is to
+use the first bootable partition on the device.
+.TP
+.BI default= label
+Specifies the default image to boot if no image name or label is
+entered by the user or specified via the Open Firmware \fIboot-file\fR
+variable.  \fILabel\fR can be either a path name or a shorthand label.
+This is a global option only.
+.TP
+.BI timeout= n
+Specifies the timeout period for the second-stage bootstrap to wait
+for the user to type a command line.  \fIN\fR is a decimal integer
+specifying the timeout period in units of 0.1 seconds.  This is a
+global option only.
+.TP
+.BI init-message= string
+Specifies a string to print out when the second-stage bootstrap
+starts.  This is a global option only.
+.TP
+.BI message= path
+Specifies the path name for a file to print out when the second-stage
+bootstrap starts, before it prompts the user for a command line.  This
+is a global option only.
+.TP
+.BI root= string
+Specifies that the argument
+.BI root= string
+should be inserted in the arguments to the kernel being booted, before
+the arguments specified by the user.
+.TP
+.BI ramdisk= string
+Specifies that the argument
+.BI ramdisk= string
+should be inserted in the arguments to the kernel being booted, before
+the arguments specified by the user.
+.TP
+.B read-only
+Specifies that the argument
+.B ro
+should be inserted in the arguments to the kernel being booted, before
+the arguments specified by the user.
+.TP
+.B read-write
+Specifies that the argument
+.B rw
+should be inserted in the arguments to the kernel being booted, before
+the arguments specified by the user.
+.TP
+.BI append= string
+Specifies that the argument
+.I string
+should be inserted in the arguments to the kernel being booted, before
+the arguments specified by the user.
+.TP
+.BI literal= string
+Specifies that the argument
+.I string
+followed by the arguments (if any) specified by the user should be the
+only arguments passed to the kernel being booted (thus overriding the
+\fBroot\fR and similar options).  This is a local option only.
+.TP
+.BI image= path
+Specifies the path for an program which can be booted.  Options from
+here until the next \fBimage\fR option are local options for this
+program.  If the image name begins with a dollar sign ($), the rest of
+the image name is taken as a forth command which will be executed by
+Open Firmware, instead of loading and running an executable program.
+.TP
+.BI label= label
+Specifies that \fIlabel\fR is a shorthand name for the current image.
+This is a local option only.
+.TP
+.BI alias= label
+Specifies that \fIlabel\fR is an alternative shorthand name for the
+current image.  This is a local option only.
+.TP
+.B pause-after
+Specifies that the second-stage bootstrap should pause after loading
+the program and before transferring control to it.  The second-stage
+bootstrap pauses by transferring control to Open Firmware; the user
+can transfer control back with the \fBgo\fR command (i.e. forth word).
+.TP
+.BI pause-message= string
+Specifies the message that the second-stage bootstrap should print
+after loading the program and before waiting for the user to press a
+key.  Only useful when the \fBpause-after\fR option is given.
+.TP
+.BI init-code= string
+Specifies that the second-stage bootstrap should call Open Firmware to
+execute the string given (a series of forth commands) before printing
+the boot prompt.  This is a global option only.
+.SH SEE ALSO
+.I bootstrap(8)

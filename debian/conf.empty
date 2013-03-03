@@ -1,0 +1,13 @@
+#
+# This is an empty quik.conf file distributed with the Debian GNU/Linux
+# package of quik. You should normally not see this file, since it is
+# replaced by a new copy at installation time of the package.
+#
+# You can run /usr/sbin/quikconfig to generate a new config file, which will
+# probably suit your needs.
+#
+# Wed,  9 Dec 1998 02:26:20 +0100  Bernd Eckenfels  <ecki@debian.org>
+#
+# Note: /usr/sbin/quikconf will consider all files which contain only
+#       comments as non-existant and generate new ones
+#

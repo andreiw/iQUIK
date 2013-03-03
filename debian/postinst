@@ -1,0 +1,53 @@
+#!/bin/sh
+set -e
+
+#if [ ! -z "`grep CHRP /proc/cpuinfo`" ] ; then
+#	echo CHRP system detected.
+##	PART=`fdisk -l | fgrep "PPC PReP Boot"`
+#	PART=`cfdisk -P s | fgrep "PPC PReP boot"`
+#	if [ -z "$PART" ] ; then
+#	    echo '*********************************************************'
+#	    echo '* You must create a PPC PReP Boot partition (type 0x41) *'
+#	    echo '* for the CHRP bootloader to be installed.              *'
+#	    echo '*********************************************************'
+#	    exit -1
+#	fi
+#	if [ `echo "$PART" | wc -l` != 1 ] ; then
+#	    echo '**************************************************************'
+#	    echo '* There are more than 1 PPC PReP Boot partitions (type 0x41) *'
+#	    echo '* on this system.  Aborting install rather than picking one. *'
+#	    echo '**************************************************************'
+#	    exit -1
+#	fi
+#	if [ -z `echo "$PART" | grep "Boot (80)"` ] ; then
+#	    echo '***************************************************************'
+#	    echo '* The PPC PReP Boot partition (type 0x41) is not marked as    *'
+#	    echo '* bootable.  You will need to mark this partition as bootable *'
+#	    echo '* before Quik can be installed onto it.                       *'
+#	    echo '**************************************************************'
+#	    exit -1
+#	fi
+#	P=`echo "$PART" | awk '{print $1}'`
+#	# assume /dev/sda!!!
+#	P=/dev/sda${P}
+#	echo Installing onto $P
+#	dd if=/boot/ppc/second of=$P
+##	mkdosfs $P
+##	mkdir /quikchrp
+##	mount -t msdos $P /quikchrp
+##	cp -rf /boot/ppc /quikchrp
+##	umount /quikchrp
+##	rm -f /quikchrp
+#fi
+
+if [ "$1" = "configure" ] && \
+   [ "$DEBIAN_FRONTEND" != noninteractive -a "$DEBIAN_FRONTEND" != Noninteractive ]; then
+    echo "running /usr/sbin/quikconfig"
+    echo 
+    /usr/sbin/quikconfig || \
+        echo "WARNING: your system might not boot, check /etc/quik.conf and rerun '/sbin/quik -v'"
+fi
+
+#DEBHELPER#
+
+exit 0

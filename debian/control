@@ -1,0 +1,15 @@
+Source: quik
+Section: base
+Priority: important
+Maintainer: Jens Schmalzing <jensen@debian.org>
+Standards-Version: 3.5.6.1
+Build-Depends: debhelper, e2fslibs-dev
+
+Package: quik
+Architecture: powerpc
+Depends: ${shlibs:Depends}
+Description: Bootloader for PowerMac or CHRP systems
+ The quik package provides the functionality necessary for booting a
+ Linux Debian/PowerPC PowerMac or CHRP system from disk.  It includes
+ first and second stage disk bootstrap and a program for installing the
+ first stage bootstrap on the root disk.

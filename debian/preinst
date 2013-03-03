@@ -1,0 +1,33 @@
+#!/bin/sh
+
+[ x"install" = x"$1" -o x"upgrade" = x"$1" ] || exit 0
+
+set -e
+
+preserve() {
+  if [ -f "$1" ]; then
+	if [ "$1" -ef "$1".preserved ]; then
+		echo "already preserved: $1"
+	else
+		echo "preserving $1"
+		ln -f "$1" "$1".preserved || echo "Warning: Cant link $1 to $1.preserved in /boot/"
+	fi
+  fi
+}
+
+echo "Since your boot sector or MBR might still need some files from /boot"
+echo "this script will preserve them as /boot/filename.preserved"
+echo "IMPORTANT: In the dpkg prompt answer 'N' to overwriting quik.conf"
+
+cd /boot
+
+set +e # Turn it off!
+
+preserve first.b
+preserve second.b
+
+set -e
+
+#DEBHELPER#
+
+exit 0

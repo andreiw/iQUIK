@@ -1,0 +1,20 @@
+.\" quikconfig - configure quik automatically
+.TH quikconfig 8 "15 April 2002" "" "PowerMac/Linux"
+.SH NAME
+quikconfig \- Configure quik automatically
+.SH SYNOPSIS
+.B /usr/sbin/quikconfig
+.SH DESCRIPTION
+.B Quikconfig
+attempts to determine a sensible configuration for quik and writes it
+to hard disk.  Before any potentially destructive steps, the user is
+prompted for approval.
+.SH FILES
+.nf
+/etc/fstab
+/etc/quik.conf
+.fi
+.SH AUTHORS
+Matt McLean, based on liloconfig by Bruce Perens and Bernd Eckenfels.
+.SH SEE ALSO
+.I quik(8), quik.conf(5), bootstrap(8)

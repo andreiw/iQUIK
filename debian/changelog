@@ -1,0 +1,109 @@
+quik (2.0e-1) unstable; urgency=low
+
+  * New maintainer (closes: Bug#104291).
+  * Made package lintian clean by adding a manpage for the quikconfig
+    script, dynamically linking the quik binary, and updating the
+    Standards-Version.
+
+ -- Jens Schmalzing <jensen@debian.org>  Mon, 15 Apr 2002 15:40:41 +0200
+
+quik (2.0e-0.7) unstable; urgency=low
+
+  * QA upload.
+  * Recompile with e2fsprogs 1.27-2, per request of e2fsprogs maintainer.
+
+ -- Colin Walters <walters@debian.org>  Wed, 27 Mar 2002 20:27:12 -0500
+
+quik (2.0e-0.6) unstable; urgency=low
+
+  * NMU
+  * Potato version is newer than current woody version, and has the
+    bootstrap.8 man page, which conflicts with yaboot's bootstrap.8. So
+    just bump this version, and don't include that man page
+    (Closes: #119164).
+
+ -- Colin Walters <walters@debian.org>  Mon, 26 Nov 2001 00:01:52 -0500
+
+quik (2.0e-0.5) unstable; urgency=medium
+
+  * NMU
+  * postinst installing /etc/quik.conf, and not as a conffile, so it was
+    getting blown away on each upgrade.  Sorry.
+  * please, some maintainer who actually uses this successfully, please
+    take over this package
+
+ -- Adam Di Carlo <aph@debian.org>  Mon, 18 Jun 2001 10:18:54 -0400
+
+quik (2.0e-0.4) unstable; urgency=low
+
+  * postinst redux: inhibit running of quikconfig if
+    DEBIAN_FRONTEND=Noninteractive as well, for the same reason as before
+    closes: #100127
+
+ -- Adam Di Carlo <aph@debian.org>  Tue, 12 Jun 2001 20:43:50 -0400
+
+quik (2.0e-0.3) unstable; urgency=high
+
+  * NMU
+  * debian maintainer no longer able to maintain this package, 
+    orphaning it; maintainer changed to packages@qa.debian.org
+
+  * postinst: inhibit running of quikconfig if
+    DEBIAN_FRONTEND=noninteractive -- this caused bad failures during base
+    bootstrapping
+    closes: #100127
+
+  * /etc/quik.conf is machine generated, so should not be a conffile
+    (policy violation)
+  * don't install useless /boot/ppc dir and contents
+  * postinst: remove the early exit, which prevented the debhelper stuff
+    from running
+
+ -- Adam Di Carlo <aph@debian.org>  Tue, 12 Jun 2001 00:38:20 -0400
+
+quik (2.0e-0.2) unstable; urgency=medium
+
+  * NMU (RC bugs older than 1 month)
+  * force use of our own setjmp implementation based on glibc 6.1
+    implementation
+    closes: #93871
+  * properly set kernel args to use a null pointer
+    closes: #93870
+  * add Build-Depends for debhelper and e2fslibs-dev
+  * add debhelper tokens to postinst and preinst scripts
+  * debian/rules: remove dh_testversion
+  * debian/rules: don't install bootstrap(8) man page, which is also in yaboot
+
+ -- Adam Di Carlo <aph@debian.org>  Mon, 21 May 2001 06:48:12 -0400
+
+quik (2.0e-0.1) frozen unstable; urgency=medium
+
+  * NMU with maintainer approval.
+  * Patches to make Quik functional on powermac again.
+  * The upstream source no longer includes a bootinfo.txt (chrpboot
+    script) but I have left it in place for the moment.
+
+ -- Daniel Jacobowitz <dan@debian.org>  Tue, 28 Mar 2000 15:05:13 -0500
+
+quik (2.0-2) unstable; urgency=low
+
+  * added a patch from Benjamin Herrenschmidt <bh40@calva.net> 
+    
+ -- Hartmut Koptein <koptein@debian.org>  Wed, 22 Sep 1999 18:33:41 +0200 
+
+
+quik (2.0-1) unstable; urgency=low
+
+  * New upstream version.
+  * New Standards Version: 3.0.1.1
+
+ -- Hartmut Koptein <koptein@debian.org>  Sun, 19 Sep 1999 22:59:45 +0200  
+
+
+quik (1.3.1-1) unstable; urgency=low
+
+  * Initial Release.
+
+ -- Hartmut Koptein <koptein@debian.org>  Fri, 20 Feb 1998 18:08:30 -0800
+
+
