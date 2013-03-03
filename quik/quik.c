@@ -25,7 +25,7 @@
 #include <ctype.h>
 #include <stdio.h>
 #include <stdarg.h>
-/* #include <string.h> causes compilation to fail */ 
+#include <string.h>
 #include <stdlib.h>
 #include <linux/fs.h>
 #include <linux/ext2_fs.h>
@@ -224,8 +224,9 @@ char *chrootcpy(char *path)
         else
             strcat(buffer, path + 1);
         return buffer;
-    } else
+    } else {
         return strdup(path);
+    }
 }
 
 void write_block_table(char *device, char *config_file, int partno)
