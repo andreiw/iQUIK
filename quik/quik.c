@@ -116,21 +116,18 @@ void read_sb(char *device,    /* IN */
    char *p;
    char buff[512];
 
-   if ((fd = open(device, O_RDONLY)) == -1) {
-      fatal("Cannot open %s", device);
-   }
+   if (!floppy) {
+      if ((fd = open(device, O_RDONLY)) == -1) {
+         fatal("Cannot open %s", device);
+      }
 
-   bs = check_fs(fd);
+      bs = check_fs(fd);
 
-   if (bs == -1) {
-      fatal("Filesystems other than ext2 are not supported");
-   }
+      if (bs == -1) {
+         fatal("Filesystems other than ext2 are not supported");
+      }
 
-   close(fd);
-
-   p = device + strlen(device);
-   while (p > device && isdigit(p[-1])) {
-      --p;
+      close(fd);
    }
 
    if (floppy) {
@@ -139,6 +136,11 @@ void read_sb(char *device,    /* IN */
       partno = 2;
       bootdev = "/dev/fd0";
    } else {
+      p = device + strlen(device);
+      while (p > device && isdigit(p[-1])) {
+         --p;
+      }
+
       partno = atoi(p);
       if (partno == 0) {
          fatal("Can't determine partition number for %s", device);
@@ -200,7 +202,9 @@ void read_sb(char *device,    /* IN */
 
 void make_bootable(char *device,
                    char *spart,
-                   int part_index)
+                   int part_index,
+                   off_t stage_size,
+                   __u32 load_base)
 {
    int fd;
    struct mac_partition *mp;
@@ -236,10 +240,10 @@ void make_bootable(char *device,
    mp = (struct mac_partition *) buff;
    mp->status |= STATUS_BOOTABLE;
    mp->boot_start = 0;
-   mp->boot_size = 1024;
-   mp->boot_load = FIRST_BASE;
+   mp->boot_size = stage_size;
+   mp->boot_load = load_base;
    mp->boot_load2 = 0;
-   mp->boot_entry = FIRST_BASE;
+   mp->boot_entry = load_base;
    mp->boot_entry2 = 0;
    strncpy(mp->processor, "PowerPC", sizeof(mp->processor));
    if (lseek(fd, part_index * secsize, 0) < 0
@@ -395,12 +399,13 @@ int examine_bootblock(char *device, char *filename, int do_backup)
    return ret;
 }
 
-void install_first_stage(char *device, char *filename)
+void install_stage(char *device, char *filename, off_t *stage_size)
 {
-   char buff[1024];
+   char *buff;
    int rc;
    int fd;
    FILE *fp;
+   struct stat st;
 
    if (verbose) {
       printf("Writing first-stage QUIK boot block to %s\n", device);
@@ -414,7 +419,17 @@ void install_first_stage(char *device, char *filename)
       fatal("Couldn't open primary boot file %s", filename);
    }
 
-   rc = fread(buff, 1, 1024, fp);
+   if (stat(filename, &st) < 0) {
+      fatal("Couldn't stat %s\n", filename);
+   }
+   *stage_size = st.st_size;
+
+   buff = malloc(*stage_size);
+   if (buff == NULL) {
+      fatal("Couldn't alloc %u to read %s\n", *stage_size, filename);
+   }
+
+   rc = fread(buff, 1, *stage_size, fp);
    if (rc <= 0) {
       fatal("Couldn't read new quik bootblock from %s", filename);
    }
@@ -427,6 +442,7 @@ void install_first_stage(char *device, char *filename)
       fatal("Couldn't write quik bootblock to %s", device);
    }
 
+   free(buff);
    close(fd);
    fclose(fp);
 }
@@ -557,6 +573,7 @@ int main(int argc,char **argv)
    extern int optind;
    extern char *optarg;
    int floppy = 0;
+   off_t stage_size = 0;
 
    /*
     * Test if we're being run on a chrp machine.  We don't
@@ -646,6 +663,8 @@ int main(int argc,char **argv)
    if (stat(secondary, &st1) < 0) {
       fatal("Cannot open second stage loader %s", secondary);
    }
+
+   if (!floppy) {
 
    /* work out what sort of disk this is and how to
       interpret the minor number */
@@ -737,27 +756,43 @@ int main(int argc,char **argv)
          force_backup = 1;
       }
    }
-
-   read_sb(spart, bootdev, floppy, &part_index);
-   printf("part_index = %u\n", part_index);
-
-   if (!examine_bootblock(floppy ? "/dev/fd0" : bootdev, backup, force_backup)
-       || install || force) {
-      if (!install) {
-         install = chrootcpy(DFL_PRIMARY);
-      } else if (*install == '/') {
-         install = chrootcpy(install);
-      }
-
-      install_first_stage(floppy ? "/dev/fd0" : bootdev, install);
-      make_bootable(floppy ? "/dev/fd0" : bootdev,
-                    floppy ? "/dev/fd0" : spart,
-                    part_index);
+   } else {
+      strcpy(bootdev, "/dev/fd0");
    }
 
-   get_partition_blocks(secondary);
-   write_block_table(floppy ? "/dev/fd0" : bootdev, config_file,
-                     config_file_partno);
+   read_sb(spart, bootdev, floppy, &part_index);
+
+   if (!floppy) {
+      if (!examine_bootblock(bootdev, backup, force_backup)
+          || install || force) {
+         if (!install) {
+            install = chrootcpy(DFL_PRIMARY);
+         } else if (*install == '/') {
+            install = chrootcpy(install);
+         }
+
+         install_stage(bootdev, install, &stage_size);
+         make_bootable(bootdev,
+                       spart,
+                       part_index,
+                       stage_size,
+                       FIRST_BASE);
+      }
+   } else {
+      install_stage("/dev/fd0", secondary, &stage_size);
+      make_bootable("/dev/fd0",
+                    "/dev/fd0",
+                    part_index,
+                    stage_size,
+                    SECOND_BASE);
+   }
+
+   if (!floppy) {
+      get_partition_blocks(secondary);
+      write_block_table(bootdev, config_file,
+                        config_file_partno);
+   }
+
    sync();
    exit(0);
 }

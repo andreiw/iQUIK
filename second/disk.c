@@ -52,8 +52,8 @@ int diskinit()
      * Hack for the time being.  We need at the raw disk device, not
      * just a few partitions. -- Cort
      */
-    if ( is_chrp )
-	    sprintf(bootdevice, "disk:0");
+/*     if ( is_chrp ) */
+/* 	    sprintf(bootdevice, "disk:0"); */
     if( open(bootdevice) )
     {
 	    /*

@@ -3,8 +3,8 @@
 ##
 
 CFLAGS = -I../include -O2 -D__NO_STRING_INLINES
-
-LDFLAGS=-N -Ttext 0x3e0000
+ASFLAGS=-D__ASSEMBLY__ -I../include
+LDFLAGS=-T ld.script -N -Ttext 0x3e0000
 
 OBJS =	crt0.o printf.o malloc.o main.o cmdline.o disk.o file.o \
 	cfg.o strtol.o prom.o cache.o string.o setjmp.o ctype.o \

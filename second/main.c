@@ -371,7 +371,7 @@ int main(void *prom_entry, struct first_info *fip, unsigned long id)
 	     * scan the disk looking for a linux FS with /etc/quik.conf.
 	     * -- Cort
 	     */
-	    fip->conf_part = 2;
+	    fip->conf_part = 6;
 	    strcpy( fip->conf_file, "/etc/quik.conf" );
     }
 
