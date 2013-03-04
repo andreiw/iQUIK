@@ -66,7 +66,6 @@ int part_mask;
 
 unsigned nsect;                 /* # (512-byte) sectors per f.s. block */
 unsigned bs;                    /* f.s. block size */
-int part_block;                 /* block # of partition map entry */
 int secsize;                    /* disk sector size */
 int first_bootable;             /* part map entry # of 1st bootable part */
 unsigned long doff;             /* start of partition containing 2nd boot */
@@ -105,7 +104,10 @@ int check_fs(int fd)
    return -1;
 }
 
-void read_sb(char *device, char *bootdev)
+void read_sb(char *device,    /* IN */
+             char *bootdev  , /* IN */
+             int floppy,      /* IN */
+             int *part_index) /* OUT - blk# of partition map entry */
 {
    int fd, partno, part;
    int offset, upart, maxpart;
@@ -131,9 +133,16 @@ void read_sb(char *device, char *bootdev)
       --p;
    }
 
-   partno = atoi(p);
-   if (partno == 0) {
-      fatal("Can't determine partition number for %s", device);
+   if (floppy) {
+
+      /* First (and only) floppy on the disk. */
+      partno = 2;
+      bootdev = "/dev/fd0";
+   } else {
+      partno = atoi(p);
+      if (partno == 0) {
+         fatal("Can't determine partition number for %s", device);
+      }
    }
 
    upart = 0;
@@ -178,7 +187,7 @@ void read_sb(char *device, char *bootdev)
       if (++upart == partno) {
 
          /* This is the one we want */
-         part_block = part;
+         *part_index = part;
          doff = mp->start_block * (secsize >> 9);
          break;
       }
@@ -189,21 +198,27 @@ void read_sb(char *device, char *bootdev)
    }
 }
 
-void make_bootable(char *device, char *spart)
+void make_bootable(char *device,
+                   char *spart,
+                   int part_index)
 {
    int fd;
    struct mac_partition *mp;
    char buff[512];
 
-   if (part_block == 0) {
+   if (part_index == 0) {
+      if (verbose) {
+         printf("Not making bootable - no partition\n");
+      }
+
       return;
    }
 
    if (verbose) {
-      printf("Making %s bootable (map entry %d)\n", spart, part_block);
+      printf("Making %s bootable (map entry %d)\n", spart, part_index);
    }
 
-   if (first_bootable > 0 && first_bootable < part_block) {
+   if (first_bootable > 0 && first_bootable < part_index) {
       fprintf(stderr, "Warning: prior partition (entry %d) is bootable\n",
               first_bootable);
    }
@@ -212,9 +227,9 @@ void make_bootable(char *device, char *spart)
       fatal("Cannot open %s for writing\n", device);
    }
 
-   lseek(fd, part_block * secsize, 0);
+   lseek(fd, part_index * secsize, 0);
    if (read(fd, buff, sizeof(buff)) != sizeof(buff)) {
-      fatal("Error reading partition map entry %d from %s\n", part_block,
+      fatal("Error reading partition map entry %d from %s\n", part_index,
             device);
    }
 
@@ -227,10 +242,10 @@ void make_bootable(char *device, char *spart)
    mp->boot_entry = FIRST_BASE;
    mp->boot_entry2 = 0;
    strncpy(mp->processor, "PowerPC", sizeof(mp->processor));
-   if (lseek(fd, part_block * secsize, 0) < 0
+   if (lseek(fd, part_index * secsize, 0) < 0
        || write(fd, buff, sizeof(buff)) != sizeof(buff)) {
       fatal("Couldn't make %s%d bootable: write error\n", device,
-            part_block);
+            part_index);
    }
 }
 
@@ -299,7 +314,7 @@ void write_block_table(char *device, char *config_file, int partno)
       fatal("Cannot open %s", device);
    }
 
-   if (lseek(fd, FIRST_INFO_OFF, SEEK_SET) != FIRST_INFO_OFF) {
+   if (lseek(fd, doff * 512 + FIRST_INFO_OFF, SEEK_SET) != doff * 512 + FIRST_INFO_OFF) {
       fatal("Seek error on %s", device);
    }
 
@@ -325,6 +340,7 @@ Options:\n\
  -s backup    save your old bootblock only if backup doesn't exist yet\n\
  -S backup    force saving your old bootblock into backup\n\
  -f           force overwriting of bootblock, even if quik already installed\n\
+ -F           install first stage to floppy
  -v           verbose mode\n\
  -V           show version\n" ,s);
    exit (1);
@@ -348,6 +364,10 @@ int examine_bootblock(char *device, char *filename, int do_backup)
       fatal("Cannot open %s", device);
    }
 
+   if (lseek(fd, doff * 512, 0) != doff * 512) {
+      fatal("Couldn't seek to partition start");
+   }
+
    if (read (fd, &u, sizeof(u)) != sizeof(u)) {
       fatal("Couldn't read old bootblock");
    }
@@ -355,7 +375,7 @@ int examine_bootblock(char *device, char *filename, int do_backup)
    close(fd);
    if (u.first_word != 0
        && memcmp(u.fi.fi.quik_vers, "QUIK" VERSION, 7) == 0
-       && u.fi.fi.quik_vers[7] >= '0' && u.fi.fi.quik_vers[7] <= '9') {
+       && u.fi.fi.quik_vers[6] >= '0' && u.fi.fi.quik_vers[6] <= '9') {
       if (verbose) {
          printf("%s already has QUIK boot block installed\n", device);
          ret = 1;
@@ -399,7 +419,7 @@ void install_first_stage(char *device, char *filename)
       fatal("Couldn't read new quik bootblock from %s", filename);
    }
 
-   if (lseek(fd, 0, 0) != 0) {
+   if (lseek(fd, doff * 512, 0) != doff * 512) {
       fatal("Couldn't seek on %s", device);
    }
 
@@ -514,13 +534,20 @@ resolve_to_dev(char *buffer, dev_t dev)
 
 int main(int argc,char **argv)
 {
-   char *name = NULL, *config_file, *install = NULL, *secondary, *backup;
+   char *name = NULL;
+   char *install = NULL;
+   char *first_dev_override = NULL;
+   char *secondary;
+   char *backup;
+   char *config_file;
    int c;
    int version = 0;
    struct stat st1, st2;
    int fd;
    int force_backup = 0;
    int config_file_partno = 1;
+   int part_index = 0;
+   int part_start_block;
    char *p, *basedev;
    char bootdev[1024];
    char spart[1024];
@@ -529,7 +556,7 @@ int main(int argc,char **argv)
    int f, inc_name;
    extern int optind;
    extern char *optarg;
-
+   int floppy = 0;
 
    /*
     * Test if we're being run on a chrp machine.  We don't
@@ -563,7 +590,7 @@ int main(int argc,char **argv)
    secondary = DFL_SECONDARY;
    new_root = NULL;
    name = argv[0];
-   while ((c = getopt(argc, argv, "b:i:fC:S:s:r:vVh")) != -1) {
+   while ((c = getopt(argc, argv, "b:i:fC:S:s:r:FvVh")) != -1) {
       switch(c) {
       case 'b':
          secondary = optarg;
@@ -595,6 +622,9 @@ int main(int argc,char **argv)
          break;
       case 'h':
          usage(name);
+         break;
+      case 'F':
+         floppy = 1;
          break;
       }
    }
@@ -708,9 +738,10 @@ int main(int argc,char **argv)
       }
    }
 
-   read_sb(spart, bootdev);
+   read_sb(spart, bootdev, floppy, &part_index);
+   printf("part_index = %u\n", part_index);
 
-   if (!examine_bootblock(spart, backup, force_backup)
+   if (!examine_bootblock(floppy ? "/dev/fd0" : bootdev, backup, force_backup)
        || install || force) {
       if (!install) {
          install = chrootcpy(DFL_PRIMARY);
@@ -718,12 +749,15 @@ int main(int argc,char **argv)
          install = chrootcpy(install);
       }
 
-      install_first_stage(spart, install);
-      make_bootable(bootdev, spart);
+      install_first_stage(floppy ? "/dev/fd0" : bootdev, install);
+      make_bootable(floppy ? "/dev/fd0" : bootdev,
+                    floppy ? "/dev/fd0" : spart,
+                    part_index);
    }
 
    get_partition_blocks(secondary);
-   write_block_table(spart, config_file, config_file_partno);
+   write_block_table(floppy ? "/dev/fd0" : bootdev, config_file,
+                     config_file_partno);
    sync();
    exit(0);
 }
