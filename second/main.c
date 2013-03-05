@@ -322,11 +322,12 @@ int get_params(boot_info_t *bi,
       *device = defdevice;
    }
 
-   if (!*kname)
+   if (!*kname) {
       printf(
          "Enter the kernel image name as [device:][partno]/path, where partno is a\n"
          "number from 0 to 16.  Instead of /path you can type [mm-nn] to specify a\n"
          "range of disk blocks (512B)\n");
+   }
 
    return 0;
 }

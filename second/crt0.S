@@ -5,9 +5,9 @@
 _start:
 
         /* From first stage? */
-        lis     3,0xdeadbeef@h
-        ori     3,3,0xdeadbeef@l
-        cmp     0,3,5
+        lis     14,0xdeadbeef@h
+        ori     14,14,0xdeadbeef@l
+        cmp     0,14,5
         beq     _not_from_of
 
         /*

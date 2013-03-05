@@ -318,7 +318,7 @@ void write_block_table(char *device, char *config_file, int partno)
       fatal("Cannot open %s", device);
    }
 
-   if (lseek(fd, doff * 512 + FIRST_INFO_OFF, SEEK_SET) != doff * 512 + FIRST_INFO_OFF) {
+   if (lseek(fd, FIRST_INFO_OFF, SEEK_SET) != FIRST_INFO_OFF) {
       fatal("Seek error on %s", device);
    }
 
@@ -350,7 +350,7 @@ Options:\n\
    exit (1);
 }
 
-int examine_bootblock(char *device, char *filename, int do_backup)
+int examine_bootblock(char *device, char *filename, int do_backup, int device_is_part)
 {
    union {
       char buffer[1024];
@@ -362,13 +362,20 @@ int examine_bootblock(char *device, char *filename, int do_backup)
    } u;
    int fd, rc;
    FILE *fp;
+   off_t off;
    int ret = 0;
 
    if ((fd = open(device, O_RDONLY)) == -1) {
       fatal("Cannot open %s", device);
    }
 
-   if (lseek(fd, doff * 512, 0) != doff * 512) {
+   if (device_is_part) {
+      off = doff * 512;
+   } else {
+      off = 0;
+   }
+
+   if (lseek(fd, off, 0) != off) {
       fatal("Couldn't seek to partition start");
    }
 
@@ -399,12 +406,13 @@ int examine_bootblock(char *device, char *filename, int do_backup)
    return ret;
 }
 
-void install_stage(char *device, char *filename, off_t *stage_size)
+void install_stage(char *device, char *filename, off_t *stage_size, int device_is_part)
 {
    char *buff;
    int rc;
    int fd;
    FILE *fp;
+   off_t off;
    struct stat st;
 
    if (verbose) {
@@ -434,7 +442,13 @@ void install_stage(char *device, char *filename, off_t *stage_size)
       fatal("Couldn't read new quik bootblock from %s", filename);
    }
 
-   if (lseek(fd, doff * 512, 0) != doff * 512) {
+   if (device_is_part) {
+      off = doff * 512;
+   } else {
+      off = 0;
+   }
+
+   if (lseek(fd, off, 0) != off) {
       fatal("Couldn't seek on %s", device);
    }
 
@@ -763,7 +777,7 @@ int main(int argc,char **argv)
    read_sb(spart, bootdev, floppy, &part_index);
 
    if (!floppy) {
-      if (!examine_bootblock(bootdev, backup, force_backup)
+      if (!examine_bootblock(spart, backup, force_backup, 0)
           || install || force) {
          if (!install) {
             install = chrootcpy(DFL_PRIMARY);
@@ -771,7 +785,7 @@ int main(int argc,char **argv)
             install = chrootcpy(install);
          }
 
-         install_stage(bootdev, install, &stage_size);
+         install_stage(spart, install, &stage_size, 0);
          make_bootable(bootdev,
                        spart,
                        part_index,
@@ -779,7 +793,7 @@ int main(int argc,char **argv)
                        FIRST_BASE);
       }
    } else {
-      install_stage("/dev/fd0", secondary, &stage_size);
+      install_stage("/dev/fd0", secondary, &stage_size, 1);
       make_bootable("/dev/fd0",
                     "/dev/fd0",
                     part_index,
@@ -789,7 +803,7 @@ int main(int argc,char **argv)
 
    if (!floppy) {
       get_partition_blocks(secondary);
-      write_block_table(bootdev, config_file,
+      write_block_table(spart, config_file,
                         config_file_partno);
    }
 
