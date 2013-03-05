@@ -43,7 +43,7 @@ static char *pause_message = "Type go<return> to continue.\n";
 static char given_bootargs[512];
 static int given_bootargs_by_user = 0;
 
-#define DEFAULT_TIMEOUT         -1
+#define DEFAULT_TIMEOUT -1
 
 void fatal(const char *msg)
 {
@@ -114,21 +114,33 @@ word_split(char **linep, char **paramsp)
 
    *paramsp = "\0";
    p = *linep;
-   if (p == 0)
-      return;
-   while (*p == ' ')
-      ++p;
-   if (*p == 0) {
-      *linep = 0;
+
+   if (p == 0) {
       return;
    }
-   *linep = p;
-   while (*p != 0 && *p != ' ')
+
+   while (*p == ' ') {
       ++p;
-   while (*p == ' ')
+   }
+
+   if (*p == 0) {
+      *linep = NULL;
+      return;
+   }
+
+   *linep = p;
+
+   while (*p != 0 && *p != ' ') {
+      ++p;
+   }
+
+   while (*p == ' ') {
       *p++ = 0;
-   if (*p != 0)
+   }
+
+   if (*p != 0) {
       *paramsp = p;
+   }
 }
 
 char *
@@ -219,7 +231,19 @@ int get_params(boot_info_t *bi,
       *params = bi->bootargs;
       *kname = *params;
       *device = bi->bootdevice;
+
+      /*
+       * AndreiW:
+       *
+       * FIXME -
+       * word_split has a screwy interface,
+       * where *params could become "\0", while
+       * *kname could become NULL. Ouch.
+       */
       word_split(kname, params);
+      if (!*kname) {
+         *kname = cfg_get_default();
+      }
 
       timeout = DEFAULT_TIMEOUT;
       if ((bi->flags & CONFIG_VALID) &&
@@ -257,7 +281,7 @@ int get_params(boot_info_t *bi,
       strcpy(given_bootargs, cbuff);
       given_bootargs_by_user = 1;
       *kname = cbuff;
-      word_split(&*kname, &*params);
+      word_split(kname, params);
    }
 
    label = 0;
