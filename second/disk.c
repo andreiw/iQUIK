@@ -2,7 +2,6 @@
 #include "prom.h"
 #include <string.h>
 
-char bootdevice[512];
 static char current_devname[512];
 static ihandle current_dev;
 
@@ -17,7 +16,7 @@ int open(char *device)
    return 0;
 }
 
-char * strstr(const char * s1,const char * s2)
+char *strstr(const char * s1,const char * s2)
 {
    int l1, l2;
 
@@ -34,36 +33,54 @@ char * strstr(const char * s1,const char * s2)
    return NULL;
 }
 
-int diskinit()
+int diskinit(boot_info_t *bi)
 {
    char *p;
-   extern unsigned int is_chrp;
 
-   prom_get_chosen("bootpath", bootdevice, sizeof(bootdevice));
-   if (bootdevice[0] == 0) {
-      prom_get_options("boot-device", bootdevice, sizeof(bootdevice));
-      if (bootdevice[0] == 0)
-         fatal("Couldn't determine boot device");
+   if (bi->flags & BOOT_FROM_SECTOR_ZERO) {
+      bi->bootdevice = bi->bootargs;
+      word_split(&bi->bootdevice, &bi->bootargs);
+   } else {
+      prom_get_chosen("bootpath", bi->of_bootdevice, sizeof(bi->of_bootdevice));
+      if (bi->of_bootdevice[0] == 0) {
+         prom_get_options("boot-device", bi->of_bootdevice, sizeof(bi->of_bootdevice));
+         if (bi->of_bootdevice[0] == 0) {
+            return -1;
+         }
+      }
+
+      bi->bootdevice = bi->of_bootdevice;
    }
-   p = strchr(bootdevice, ':');
-   if (p != 0)
-      *p = 0;
-   /*
-    * Hack for the time being.  We need at the raw disk device, not
-    * just a few partitions. -- Cort
-    */
-   /*     if ( is_chrp ) */
-   /*        sprintf(bootdevice, "disk:0"); */
-   if( open(bootdevice) )
-   {
-      /*
-       * Some chrp machines do not have a 'disk' alias so
-       * try this if disk:0 fails
-       *   -- Cort
-       */
-      sprintf(bootdevice, "/pci@fee00000/scsi@c/sd@8:0");
-      return open(bootdevice);
+
+   p = strchr(bi->bootdevice, ':');
+   if (p != 0) {
+      if (bi->flags & BOOT_FROM_SECTOR_ZERO) {
+         bi->config_part = strtol(p + 1, NULL, 0);
+      }
+
+      *p++ = 0;
+      if (bi->flags & BOOT_FROM_SECTOR_ZERO) {
+
+         /* Are we given a config file path? */
+         p = strchr(p, '/');
+         if (p != 0) {
+            bi->config_file = p;
+         } else {
+            bi->config_file = "/etc/quik.conf";
+         }
+      }
    }
+
+   if ((bi->flags & BOOT_FROM_SECTOR_ZERO) &&
+       bi->config_part == 0) {
+      printf("When booting via sector zero, you *must* provide the device path as an argument!\n");
+      return -1;
+   }
+
+   if(open(bi->bootdevice)) {
+      return open(bi->bootdevice);
+   }
+
    return 0;
 }
 
@@ -81,12 +98,15 @@ int read(char *buf, int nbytes, long long offset)
 
 void close()
 {
+   printf("Closing 0x%x\n", current_dev);
+   call_prom("close", 1, 1, current_dev);
 }
 
 int setdisk(char *device)
 {
    if (strcmp(device, current_devname) == 0)
       return 0;
+
    close();
    return open(device);
 }

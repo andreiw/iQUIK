@@ -37,15 +37,8 @@
 #define TMP_END         ((unsigned char *) SECOND_BASE)
 #define ADDRMASK        0x0fffffff
 
-                            char quik_conf[40];
-int quik_conf_part;
-unsigned int is_chrp = 0;
+static boot_info_t bi;
 
-extern int start;
-extern char bootdevice[];
-
-int useconf = 0;
-static int pause_after;
 static char *pause_message = "Type go<return> to continue.\n";
 static char given_bootargs[512];
 static int given_bootargs_by_user = 0;
@@ -57,26 +50,31 @@ void fatal(const char *msg)
    printf("\nFatal error: %s\n", msg);
 }
 
-void maintabfunc (void)
+void maintabfunc(boot_info_t *bi)
 {
-   if (useconf) {
+   if (bi->flags & CONFIG_VALID) {
       cfg_print_images();
       printf("boot: %s", cbuff);
    }
 }
 
-void parse_name(char *imagename, int defpart, char **device,
-                int *part, char **kname)
+void parse_name(char *imagename,
+                int defpart,
+                char **device,
+                unsigned *part,
+                char **kname)
 {
    int n;
    char *endp;
 
    /*
     * Assume partition 2 if no other has been explicitly set
-    * in the config file on chrp -- Cort
+    * in the config file -- Cort
     */
-   if ( defpart == -1 )
+   if (defpart == -1) {
       defpart = 2;
+      printf("no parition explicitely set - assuming 2\n");
+   }
 
    *kname = strchr(imagename, ':');
    if (!*kname) {
@@ -87,20 +85,26 @@ void parse_name(char *imagename, int defpart, char **device,
       (*kname)++;
       *device = imagename;
    }
+
    n = strtol(*kname, &endp, 0);
    if (endp != *kname) {
       *part = n;
       *kname = endp;
-   } else if (defpart != -1)
+   } else if (defpart != -1) {
       *part = defpart;
-   else
+   } else {
       *part = 0;
+   }
+
    /* Range */
-   if (**kname == '[')
+   if (**kname == '[') {
       return;
+   }
+
    /* Path */
-   if (**kname != '/')
+   if (**kname != '/') {
       *kname = 0;
+   }
 }
 
 void
@@ -128,7 +132,9 @@ word_split(char **linep, char **paramsp)
 }
 
 char *
-make_params(char *label, char *params)
+make_params(boot_info_t *bi,
+            char *label,
+            char *params)
 {
    char *p, *q;
    static char buffer[2048];
@@ -177,43 +183,51 @@ make_params(char *label, char *params)
       *q++ = ' ';
    }
    *q = 0;
-   pause_after = cfg_get_flag (label, "pause-after");
+
+   if (cfg_get_flag (label, "pause-after")) {
+      bi->flags |= PAUSE_BEFORE_BOOT;
+   }
+
    p = cfg_get_strg(label, "pause-message");
-   if (p)
-      pause_message = p;
-   if (*params)
+   if (p) {
+      bi->pause_message = p;
+   }
+
+   if (*params) {
       strcpy(q, params);
+   }
 
    return buffer;
 }
 
-int get_params(char **device, int *part, char **kname, char **params)
+int get_params(boot_info_t *bi,
+               char **device,
+               unsigned *part,
+               char **kname,
+               char **params)
 {
-   int defpart = -1;
    char *defdevice = 0;
    char *p, *q, *endp;
    int c, n;
-   char *imagename = 0, *label;
+   char *label;
    int timeout = -1;
    int beg = 0, end;
-   static int first = 1;
-   static char bootargs[512];
+   unsigned defpart = bi->config_part;
 
-   pause_after = 0;
-   *params = "";
+   if ((bi->flags & TRIED_AUTO) == 0) {
+      bi->flags ^= TRIED_AUTO;
+      *params = bi->bootargs;
+      *kname = *params;
+      *device = bi->bootdevice;
+      word_split(kname, params);
 
-   if (first) {
-      first = 0;
-      prom_get_chosen("bootargs", bootargs, sizeof(bootargs));
-      imagename = bootargs;
-      word_split(&imagename, params);
-      /* CHRP has garbage here -- Cort */
-      if ( is_chrp )
-         imagename[0] = 0;
       timeout = DEFAULT_TIMEOUT;
-      if (useconf && (q = cfg_get_strg(0, "timeout")) != 0 && *q != 0)
+      if ((bi->flags & CONFIG_VALID) &&
+          (q = cfg_get_strg(0, "timeout")) != 0 && *q != 0) {
          timeout = strtol(q, NULL, 0);
+      }
    }
+
    printf("boot: ");
    c = -1;
    if (timeout != -1) {
@@ -224,74 +238,90 @@ int get_params(char **device, int *part, char **kname, char **params)
             c = nbgetchar();
          } while (c == -1 && get_ms() <= end);
       }
-      if (c == -1)
+      if (c == -1) {
          c = '\n';
+      }
    }
 
    if (c == '\n') {
-      printf("%s", imagename);
-      if (*params)
+      printf("%s", *kname);
+      if (*params) {
          printf(" %s", *params);
+      }
+
       printf("\n");
    } else {
       cmdinit();
-      cmdedit(maintabfunc, c);
+      cmdedit(maintabfunc, bi, c);
       printf("\n");
       strcpy(given_bootargs, cbuff);
       given_bootargs_by_user = 1;
-      imagename = cbuff;
-      word_split(&imagename, params);
+      *kname = cbuff;
+      word_split(&*kname, &*params);
    }
 
-   /* chrp gets this wrong, force it -- Cort */
-   if ( useconf && (imagename[0] == 0) )
-      imagename = cfg_get_default();
-
    label = 0;
-   defdevice = bootdevice;
+   defdevice = *device;
 
-   if (useconf) {
-      defdevice = cfg_get_strg(0, "device");
+   if (bi->flags & CONFIG_VALID) {
+      if(cfg_get_strg(0, "device") != NULL) {
+         defdevice = cfg_get_strg(0, "device");
+      }
+
       p = cfg_get_strg(0, "partition");
       if (p) {
          n = strtol(p, &endp, 10);
          if (endp != p && *endp == 0)
             defpart = n;
       }
+
       p = cfg_get_strg(0, "pause-message");
-      if (p)
-         pause_message = p;
-      p = cfg_get_strg(imagename, "image");
+      if (p) {
+         bi->pause_message = p;
+      }
+
+      p = cfg_get_strg(*kname, "image");
       if (p && *p) {
-         label = imagename;
-         imagename = p;
-         defdevice = cfg_get_strg(label, "device");
+         label = *kname;
+         *kname = p;
+
+         if (cfg_get_strg(label, "device") != NULL) {
+            defdevice = cfg_get_strg(label, "device");
+         }
+
          p = cfg_get_strg(label, "partition");
          if (p) {
             n = strtol(p, &endp, 10);
-            if (endp != p && *endp == 0)
+            if (endp != p && *endp == 0) {
                defpart = n;
+            }
          }
-         *params = make_params(label, *params);
+
+         *params = make_params(bi, label, *params);
       }
    }
 
-   if (!strcmp (imagename, "halt")) {
+   if (!strcmp(*kname, "!debug")) {
+      bi->flags |= DEBUG_BEFORE_BOOT;
+      *kname = NULL;
+      return 0;
+   } else if (!strcmp(*kname, "!halt")) {
       prom_pause();
-      *kname = 0;
+      *kname = NULL;
       return 0;
-   }
+   } else if (*kname[0] == '$') {
 
-   if (imagename[0] == '$') {
       /* forth command string */
-      call_prom("interpret", 1, 1, imagename+1);
-      *kname = 0;
+      call_prom("interpret", 1, 1, *kname + 1);
+      *kname = NULL;
       return 0;
    }
 
-   parse_name(imagename, defpart, device, part, kname);
-   if (!*device)
+   parse_name(*kname, defpart, device, part, kname);
+   if (!*device) {
       *device = defdevice;
+   }
+
    if (!*kname)
       printf(
          "Enter the kernel image name as [device:][partno]/path, where partno is a\n"
@@ -330,104 +360,114 @@ print_message_file(char *p)
    }
 }
 
+int get_bootargs(boot_info_t *bi)
+{
+   prom_get_chosen("bootargs", bi->of_bootargs, sizeof(bi->of_bootargs));
+   printf("Passed arguments: '%s'\n", bi->of_bootargs);
+   bi->bootargs = bi->of_bootargs;
+   return 0;
+}
+
 /* Here we are launched */
 int main(void *prom_entry, struct first_info *fip, unsigned long id)
 {
    unsigned off;
    int i, len, image_len;
    char *kname, *params, *device;
-   int part;
+   unsigned part;
    int isfile, fileok = 0;
    unsigned int ret_offset;
    Elf32_Ehdr *e;
    Elf32_Phdr *p;
    unsigned load_loc, entry, start;
    extern char __bss_start, _end;
-   struct first_info real_fip;
+
+   /* Always first. */
+   memset(&__bss_start, 0, &_end - &__bss_start);
 
    /*
-    * If we're not being called by the first stage bootloader
-    * and we don't have the BootX signature assume we're
-    * chrp. -- Cort
+    * If we're not being called by the first stage bootloader,
+    * then we must have booted from OpenFirmware directly, via
+    * bootsector 0.
     */
-   if ( (id != 0xdeadbeef) && ((unsigned long)prom_entry != 0x426f6f58) )
-   {
-      is_chrp = 1;
-      prom_entry = (void *)id;    /* chrp passes prom_entry in r5 */
-      /*
-       * Make our own information packet with some default values
-       * we can assume are true on chrp.
-       */
-      fip = &real_fip;
-      strcpy( fip->quik_vers, "chrp" );
-      /*
-       * Assume root partition is partition 2.  We should
-       * scan the disk looking for a linux FS with /etc/quik.conf.
-       * -- Cort
-       */
-      fip->conf_part = 6;
-      strcpy( fip->conf_file, "/etc/quik.conf" );
+   if (id != 0xdeadbeef) {
+      bi.flags |= BOOT_FROM_SECTOR_ZERO;
+
+      /* OF passes prom_entry in r5 */
+      prom_entry = (void *) id;
+   } else {
+      bi.config_file = fip->conf_file;
+      bi.config_part = fip->conf_part;
    }
 
-   if ( (unsigned long)prom_entry == 0x426f6f58 )
-   {
-      printf("BootX launched us\n");
-      prom_entry = (void *)id;
-      /*
-       * These should come from the bootx info.
-       */
-      fip = &real_fip;
-      strcpy( fip->quik_vers, "BootX" );
-      /* Assume root partition is partition 9 -- Cort */
-      fip->conf_part = 9;
-      strcpy( fip->conf_file, "/etc/quik.conf" );
-   }
-
-   memset(&__bss_start, 0, &_end - &__bss_start);
    prom_init(prom_entry);
-   printf("Second-stage QUIK loader\n");
+   printf("\niQUIK OldWorld Bootloader\nCopyright (C) 2013 Andrei Warkentin\n");
+   get_bootargs(&bi);
 
-   if (diskinit() == -1)
+   /*
+    * AndreiW: FIXME, let the user enter a boot device path.
+    */
+   if (diskinit(&bi) == -1) {
+      printf("Could not determine the boot device\n");
       prom_exit();
+   }
 
-   quik_conf_part = fip->conf_part;
-   strncpy(quik_conf, fip->conf_file, sizeof(fip->conf_file));
-   if (*quik_conf && quik_conf_part >= 0) {
+   printf("Configuration file @ %s:%d%s\n", bi.bootdevice,
+          bi.config_part,
+          bi.config_file);
+
+   if (bi.config_file &&
+       bi.config_part >= 0) {
       int len;
-      fileok = load_file(0, quik_conf_part, quik_conf,
-                         TMP_BUF, TMP_END, &len, 1, 0);
-      if (!fileok || (unsigned) len >= 65535)
-         printf("\nCouldn't load %s\n", quik_conf);
-      else {
+
+      fileok = load_file(bi.bootdevice,
+                         bi.config_part,
+                         bi.config_file,
+                         TMP_BUF,
+                         TMP_END,
+                         &len, 1, 0);
+      if (!fileok || (unsigned) len >= 65535) {
+         printf("\nCouldn't load '%s'.\n", bi.config_file);
+      } else {
          char *p;
-         if (cfg_parse(quik_conf, TMP_BUF, len) < 0)
-            printf ("Syntax error or read error in %s.\n", quik_conf);
-         useconf = 1;
+         if (cfg_parse(bi.config_file, TMP_BUF, len) < 0) {
+            printf ("Syntax error or read error in %s.\n", bi.config_file);
+         }
+
+         bi.flags |= CONFIG_VALID;
          p = cfg_get_strg(0, "init-code");
-         if (p)
+         if (p) {
             call_prom("interpret", 1, 1, p);
+         }
+
          p = cfg_get_strg(0, "init-message");
-         if (p)
-            printf("%s", p);
+         if (p) {
+            printf("%s\n", p);
+         }
+
          p = cfg_get_strg(0, "message");
-         if (p)
+         if (p) {
             print_message_file(p);
+         }
       }
-   } else
+   } else {
       printf ("\n");
+   }
 
    for (;;) {
-      get_params(&device, &part, &kname, &params);
-      if (!kname)
+      get_params(&bi, &device, &part, &kname, &params);
+      if (!kname) {
          continue;
+      }
 
       fileok = load_file(device, part, kname,
                          TMP_BUF, TMP_END, &image_len, 1, 0);
 
       if (!fileok) {
-         printf ("\nImage not found.... try again\n");
+         printf ("\nImage '%s' not found.\n", kname);
          continue;
       }
+
       if (image_len > TMP_END - TMP_BUF) {
          printf("\nImage is too large (%u > %u)\n", image_len,
                 TMP_END - TMP_BUF);
@@ -451,6 +491,7 @@ int main(void *prom_entry, struct first_info *fip, unsigned long id)
          printf("Image is not a 32bit MSB ELF image\n");
          continue;
       }
+
       len = 0;
       p = (Elf32_Phdr *) (TMP_BUF + e->e_phoff);
       for (i = 0; i < e->e_phnum; ++i, ++p) {
@@ -463,26 +504,33 @@ int main(void *prom_entry, struct first_info *fip, unsigned long id)
          } else
             len = p->p_offset + p->p_filesz - off;
       }
+
       if (len == 0) {
          printf("Cannot find a loadable segment in ELF image\n");
          continue;
       }
+
       entry = e->e_entry & ADDRMASK;
-      if (len + off > image_len)
+      if (len + off > image_len) {
          len = image_len - off;
+      }
+
       break;
    }
 
-   /* chrp expects to start at 0x10000 */
-   if ( is_chrp )
-      load_loc = entry = 0x10000;
    /* After this memmove, *p and *e may have been overwritten. */
    memmove((void *)load_loc, TMP_BUF + off, len);
    flush_cache(load_loc, len);
 
    close();
-   if (pause_after) {
-      printf("%s", pause_message);
+   if (bi.flags & DEBUG_BEFORE_BOOT) {
+      printf("Load location: 0x%x\n", load_loc);
+      printf("Kernel parameters: %s\n", params);
+      printf(pause_message);
+      prom_pause();
+      printf("\n");
+   } else if (bi.flags & PAUSE_BEFORE_BOOT) {
+      printf("%s", bi.pause_message);
       prom_pause();
       printf("\n");
    }
@@ -491,17 +539,22 @@ int main(void *prom_entry, struct first_info *fip, unsigned long id)
     * For the sake of the Open Firmware XCOFF loader, the entry
     * point may actually be a procedure descriptor.
     */
-   start = *(unsigned *)entry;
+   start = *(unsigned *) entry;
+
    /* new boot strategy - see head.S in the kernel for more info -- Cort */
-   if (start == 0x60000000/* nop */ )
+   if (start == 0x60000000) {
+      /* nop */
+
       start = load_loc;
-   /* not the new boot strategy, use old logic -- Cort */
-   else
-   {
+   } else {
+      /* not the new boot strategy, use old logic -- Cort */
+
       if (start < load_loc || start >= load_loc + len
-          || ((unsigned *)entry)[2] != 0)
+          || ((unsigned *)entry)[2] != 0) {
+
          /* doesn't look like a procedure descriptor */
          start += entry;
+      }
    }
    printf("Starting at %x\n", start);
 

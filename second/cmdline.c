@@ -28,7 +28,7 @@ void cmdinit()
    cbuff[0] = 0;
 }
 
-void cmdedit(void (*tabfunc)(void), int c)
+void cmdedit(void (*tabfunc)(boot_info_t *), boot_info_t *bi, int c)
 {
    int x;
 
@@ -40,7 +40,7 @@ void cmdedit(void (*tabfunc)(void), int c)
       c = getchar();
    while (c != -1 && c != '\n' && c != '\r') {
       if (c == '\t' && tabfunc)
-         (*tabfunc)();
+         (*tabfunc)(bi);
       if (c == '\b' || c == 0x7F) {
          if (x > 0) {
             --x;

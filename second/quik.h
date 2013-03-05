@@ -2,6 +2,41 @@
  * Global procedures and variables for the quik second-stage bootstrap.
  */
 
+typedef struct {
+
+  /* Boot device path. */
+  char *device;
+
+#define CONFIG_VALID          (1 << 1)
+#define BOOT_FROM_SECTOR_ZERO (1 << 2)
+#define PAUSE_BEFORE_BOOT     (1 << 3)
+#define DEBUG_BEFORE_BOOT     (1 << 4)
+#define TRIED_AUTO            (1 << 5)
+  unsigned flags;
+
+  /* Config file path. E.g. /etc/quik.conf */
+  char *config_file;
+
+  /* Partition index for config_file. */
+  unsigned config_part;
+
+  /* Some reasonable size for bootargs. */
+  char of_bootargs[512];
+  char *bootargs;
+
+  /* boot-device or /chosen/bootpath */
+  char of_bootdevice[512];
+
+  /* Picked default boot device. */
+  char *bootdevice;
+
+  /* Pause message. */
+  char *pause_message;
+} boot_info_t;
+
+int diskinit(boot_info_t *bi);
+void cmdedit(void (*tabfunc)(boot_info_t *), boot_info_t *bi, int c);
+
 extern char cbuff[];
 extern char bootdevice[];
 

@@ -393,10 +393,10 @@ int load_file(char *device, int partno, char *filename,
    int retval;
    char bogusdev[] = "/dev/sdaX";
 
-   if (device == 0)
-      device = bootdevice;
-   if (setdisk(device) < 0)
+   if (setdisk(device) < 0) {
       return 0;
+   }
+
    bogusdev[8] = partno + '0';
    filebuffer = buffer;
    filelimit = limit;
@@ -408,8 +408,13 @@ int load_file(char *device, int partno, char *filename,
       return 0;
    }
    type = ext2;
-   if (retval = ext2fs_namei(fs, root, cwd, filename, &inode)) {
-      printf("\nInode error #%d while loading file %s.", retval, filename);
+   retval = ext2fs_namei(fs, root, cwd, filename, &inode);
+   if (retval) {
+      if (retval == EXT2_ET_FILE_NOT_FOUND) {
+         printf("File '%s' does not exist.", filename);
+      } else {
+         printf("ext2fs error 0x%x while loading file %s.", retval, filename);
+      }
       ext2fs_close(fs);
       return 0;
    }

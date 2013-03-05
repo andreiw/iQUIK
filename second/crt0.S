@@ -11,7 +11,7 @@ _start:
         beq     _not_from_of
 
         /*
-         * No, we were booted using fd:0 or via CHRP somehow.
+         * No, we were booted using bootsector 0.
          * Need to set up basic runtime environment.
          */
 
