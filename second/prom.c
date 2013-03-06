@@ -15,6 +15,7 @@
 ihandle prom_stdin;
 ihandle prom_stdout;
 ihandle prom_chosen;
+ihandle prom_aliases;
 ihandle prom_options;
 
 struct prom_args {
@@ -109,10 +110,13 @@ void
 prom_init(void (*pp)(void *))
 {
    prom_entry = pp;
+
    /* First get a handle for the stdout device */
    prom_chosen = call_prom("finddevice", 1, 1, "/chosen");
    if (prom_chosen == (void *)-1)
       prom_exit();
+
+   prom_aliases = call_prom("finddevice", 1, 1, "/aliases");
    getpromprop(prom_chosen, "stdout", &prom_stdout, sizeof(prom_stdout));
    getpromprop(prom_chosen, "stdin", &prom_stdin, sizeof(prom_stdin));
    prom_options = call_prom("finddevice", 1, 1, "/options");
@@ -131,6 +135,17 @@ prom_get_options(char *name, char *buf, int buflen)
    buf[0] = 0;
    if (prom_options != (void *) -1)
       getpromprop(prom_options, name, buf, buflen);
+}
+
+int
+prom_get_alias(char *name, char *buf, int buflen)
+{
+   buf[0] = 0;
+   if (prom_aliases != (void *) -1) {
+      return getpromprop(prom_aliases, name, buf, buflen);
+   }
+
+   return 0;
 }
 
 int

@@ -11,6 +11,7 @@ typedef void *ihandle;
 extern ihandle prom_stdin;
 extern ihandle prom_stdout;
 extern ihandle prom_chosen;
+extern ihandle prom_aliases;
 
 /* Prototypes */
 void prom_init(void (*pp)(void *));
