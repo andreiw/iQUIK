@@ -2,12 +2,22 @@
  * Procedures for interfacing to the Open Firmware PROM on
  * Power Macintosh computers.
  *
- * Paul Mackerras October 1996.
+ * Copyright (C) Andrei Warkentin <andrey.warkentin>
+ *
+ * Portions from yaboot, so:
+
+ * Copyright (C) 2001, 2002 Ethan Benson
+ * Copyright (C) 1999 Benjamin Herrenschmidt
+ * Copyright (C) 1999 Marius Vollmer
  * Copyright (C) 1996 Paul Mackerras.
+ *
+ * Portion from Linux kernel prom_init.c, so:
  */
 
 #include <stdarg.h>
 #include "prom.h"
+
+#define PROM_CLAIM_MAX_ADDR (0x10000000)
 
 #define getpromprop(node, name, buf, len)                            \
    ((int)call_prom("getprop", 4, 1, (node), (name), (buf), (len)))
@@ -17,6 +27,8 @@ ihandle prom_stdout;
 ihandle prom_chosen;
 ihandle prom_aliases;
 ihandle prom_options;
+ihandle prom_mmu;
+ihandle prom_memory;
 
 struct prom_args {
    char *service;
@@ -116,6 +128,8 @@ prom_init(void (*pp)(void *))
    if (prom_chosen == (void *)-1)
       prom_exit();
 
+   prom_memory = call_prom("open", 1, 1, "/memory");
+   getpromprop(prom_chosen, "mmu", &prom_mmu, sizeof(prom_mmu));
    prom_aliases = call_prom("finddevice", 1, 1, "/aliases");
    getpromprop(prom_chosen, "stdout", &prom_stdout, sizeof(prom_stdout));
    getpromprop(prom_chosen, "stdin", &prom_stdin, sizeof(prom_stdin));
@@ -165,4 +179,65 @@ set_bootargs(char *params)
 {
    call_prom("setprop", 4, 1, prom_chosen, "bootargs", params,
              strlen(params) + 1);
+}
+
+void *
+prom_claim(void *virt, unsigned int size, unsigned int align)
+{
+   int ret;
+   void *result;
+
+   /*
+    * Old OF requires we claim physical and virtual separately
+    * and then map explicitly (assuming virtual mode)
+    */
+
+   ret = (int) call_prom("call-method", 5, 2, &result,
+                         "claim", prom_memory,
+                         align, size, virt);
+   if (ret != 0 || result == (void *) -1) {
+      return (void *) -1;
+   }
+
+   ret = (int) call_prom("call-method", 5, 2, &result,
+                         "claim", prom_mmu,
+                         align, size, virt);
+   if (ret != 0) {
+      call_prom("call-method", 4, 1, "release",
+                prom_memory, size, virt);
+      return (void *) -1;
+   }
+
+   /* the 0x12 is M (coherence) + PP == read/write */
+   call_prom("call-method", 6, 1,
+             "map", prom_mmu, 0x12, size, virt, virt);
+
+   return virt;
+
+   /* return call_prom("claim", 3, 1, virt, size, align); */
+}
+
+/*
+ * if address given is claimed look for other addresses to get the needed
+ * space before giving up.
+ */
+void *
+prom_claim_chunk(void *virt,
+                 unsigned int size,
+                 unsigned int align)
+{
+  void *found, *addr;
+
+  for(addr = virt;
+      addr <= (void*) PROM_CLAIM_MAX_ADDR;
+      addr += (0x100000/sizeof(addr))) {
+
+     found = prom_claim(addr, size, 0);
+     if (found != (void *)-1) {
+        printk("claimed %u at 0x%x (expected 0x%x)\n",size, (int) found, (int) virt);
+        return found;
+     }
+  }
+
+  return (void*) -1;
 }

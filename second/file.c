@@ -387,6 +387,47 @@ int get_len(ino_t inode)
    return ei.i_size;
 }
 
+quik_err_t length_file(char *device,
+                       int partno,
+                       char *filename,
+                       fs_len_t *len)
+{
+   int retval;
+   ext2_ino_t inode;
+   struct ext2_inode ei;
+   char bogusdev[] = "/dev/sdaX";
+
+   *len = 0;
+
+   if (setdisk(device) < 0) {
+      return ERR_DEV_OPEN;
+   }
+
+   bogusdev[8] = partno + '0';
+   if (!open_ext2(bogusdev)) {
+      return ERR_FS_OPEN;
+   }
+
+   retval = ext2fs_namei(fs, root, cwd, filename, &inode);
+   if (retval) {
+      if (retval == EXT2_ET_FILE_NOT_FOUND) {
+         return ERR_FS_NOT_FOUND;
+      }
+
+      printk("ext2fs error 0x%x while opening %s.", retval, filename);
+
+      ext2fs_close(fs);
+      return ERR_FS_EXT2FS;
+   }
+
+   if (ext2fs_read_inode(fs, inode, &ei)) {
+      return ERR_FS_EXT2FS;
+   }
+
+   *len = ei.i_size;
+   return ERR_NONE;
+}
+
 int load_file(char *device, int partno, char *filename,
               char *buffer, char *limit, int *len,
               int dogunzip, void (*lenfunc)(int, char **, char **))
@@ -422,7 +463,7 @@ int load_file(char *device, int partno, char *filename,
    }
    size = get_len(inode);
    if (buffer + size > limit) {
-      printk("Image too large to fit in destination");
+      printk("Image too large to fit in destination\n");
       return 0;
    }
 

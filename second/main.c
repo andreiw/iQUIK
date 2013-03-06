@@ -35,6 +35,8 @@
 
 #define TMP_BUF         ((unsigned char *) 0x14000)
 #define TMP_END         ((unsigned char *) SECOND_BASE)
+#define INITRD_BASE     ((unsigned char *) 0x800000)
+#define INITRD_SIZE     (0x400000)
 #define ADDRMASK        0x0fffffff
 
 static boot_info_t bi;
@@ -205,6 +207,7 @@ int get_params(boot_info_t *bi,
                char **device,
                unsigned *part,
                char **kname,
+               char **initrd,
                char **params)
 {
    char *defdevice = 0;
@@ -293,13 +296,15 @@ int get_params(boot_info_t *bi,
          bi->pause_message = p;
       }
 
+      *initrd = cfg_get_strg(0, "initrd");
       p = cfg_get_strg(*kname, "image");
       if (p && *p) {
          label = *kname;
          *kname = p;
 
-         if (cfg_get_strg(label, "device") != NULL) {
-            defdevice = cfg_get_strg(label, "device");
+         p = cfg_get_strg(label, "device");
+         if (p) {
+            defdevice = p;
          }
 
          p = cfg_get_strg(label, "partition");
@@ -310,12 +315,25 @@ int get_params(boot_info_t *bi,
             }
          }
 
+         p = cfg_get_strg(label, "initrd");
+         if (p) {
+            *initrd = p;
+         }
+
          *params = make_params(bi, label, *params);
       }
    }
 
    if (!strcmp(*kname, "!debug")) {
       bi->flags |= DEBUG_BEFORE_BOOT;
+      *kname = NULL;
+      return 0;
+   } if (!strcmp(*kname, "!new")) {
+      bi->flags |= BOOT_NEW_WAY;
+      *kname = NULL;
+      return 0;
+   } if (!strcmp(*kname, "!claim")) {
+      bi->flags |= BOOT_CLAIM_MEM;
       *kname = NULL;
       return 0;
    } else if (!strcmp(*kname, "!halt")) {
@@ -390,14 +408,14 @@ int get_bootargs(boot_info_t *bi)
 int main(void *prom_entry, struct first_info *fip, unsigned long id)
 {
    unsigned off;
-   int i, len, image_len;
-   char *kname, *params, *device;
+   int i, len, image_len, initrd_len;
+   char *kname, *initrd, *params, *device;
    unsigned part;
-   int isfile, fileok = 0;
-   unsigned int ret_offset;
+   int fileok = 0;
    Elf32_Ehdr *e;
    Elf32_Phdr *p;
-   unsigned load_loc, entry, start;
+   char *load_buf, *load_buf_end;
+   unsigned load_loc, entry, start, initrd_base;
    extern char __bss_start, _end;
 
    /* Always first. */
@@ -419,7 +437,8 @@ int main(void *prom_entry, struct first_info *fip, unsigned long id)
    }
 
    prom_init(prom_entry);
-   printk("\niQUIK OldWorld Bootloader\nCopyright (C) 2013 Andrei Warkentin\n");
+   printk("\niQUIK OldWorld Bootloader\n");
+   printk("Copyright (C) 2013 Andrei Warkentin <andrey.warkentin@gmail.com>\n");
    get_bootargs(&bi);
 
    diskinit(&bi);
@@ -438,7 +457,7 @@ int main(void *prom_entry, struct first_info *fip, unsigned long id)
                          bi.config_file,
                          TMP_BUF,
                          TMP_END,
-                         &len, 1, 0);
+                         &len, 1, NULL);
       if (!fileok || (unsigned) len >= 65535) {
          printk("\nCouldn't load '%s'.\n", bi.config_file);
       } else {
@@ -466,34 +485,46 @@ int main(void *prom_entry, struct first_info *fip, unsigned long id)
    }
 
    for (;;) {
-      get_params(&bi, &device, &part, &kname, &params);
+      get_params(&bi, &device, &part,
+                 &kname, &initrd, &params);
       if (!kname) {
          continue;
       }
 
+      load_buf = TMP_BUF;
+      load_buf_end = TMP_END;
+      if (bi.flags & BOOT_CLAIM_MEM) {
+         load_buf = prom_claim_chunk(load_buf, load_buf_end - load_buf, 0);
+         if (load_buf == (char *) -1) {
+            printk("claim failed\n");
+         }
+      }
+
+      printk("Loading %s\n", kname);
       fileok = load_file(device, part, kname,
-                         TMP_BUF, TMP_END, &image_len, 1, 0);
+                         load_buf, load_buf_end,
+                         &image_len, 1, NULL);
 
       if (!fileok) {
-         printk ("\nImage '%s' not found.\n", kname);
+         printk("\nImage '%s' not found.\n", kname);
          continue;
       }
 
-      if (image_len > TMP_END - TMP_BUF) {
+      if (image_len > load_buf_end - load_buf) {
          printk("\nImage is too large (%u > %u)\n", image_len,
-                TMP_END - TMP_BUF);
+                load_buf_end - load_buf);
          continue;
       }
 
       /* By this point the first sector is loaded (and the rest of */
       /* the kernel) so we check if it is an executable elf binary. */
 
-      e = (Elf32_Ehdr *) TMP_BUF;
+      e = (Elf32_Ehdr *) load_buf;
       if (!(e->e_ident[EI_MAG0] == ELFMAG0 &&
             e->e_ident[EI_MAG1] == ELFMAG1 &&
             e->e_ident[EI_MAG2] == ELFMAG2 &&
             e->e_ident[EI_MAG3] == ELFMAG3)) {
-         printk ("\n%s: unknown image format\n", kname);
+         printk("\n%s: unknown image format\n", kname);
          continue;
       }
 
@@ -504,7 +535,7 @@ int main(void *prom_entry, struct first_info *fip, unsigned long id)
       }
 
       len = 0;
-      p = (Elf32_Phdr *) (TMP_BUF + e->e_phoff);
+      p = (Elf32_Phdr *) (load_buf + e->e_phoff);
       for (i = 0; i < e->e_phnum; ++i, ++p) {
          if (p->p_type != PT_LOAD || p->p_offset == 0)
             continue;
@@ -526,16 +557,63 @@ int main(void *prom_entry, struct first_info *fip, unsigned long id)
          len = image_len - off;
       }
 
+      if (!initrd) {
+         initrd_base = 0;
+         initrd_len = 0;
+         break;
+      }
+
+      printk("Loading %s\n", initrd);
+      initrd_base = prom_claim_chunk(INITRD_BASE, INITRD_SIZE, 0);
+      if (initrd_base == (char *) -1) {
+         printk("claim failed\n");
+      } else {
+         printk("claimed 0x%x\n", initrd_base);
+      }
+
+      {
+         char *probe = (char *) initrd_base;
+         printk("probing...\n");
+         *probe = 1;
+         printk("safe???\n");
+         memset(probe, 0, INITRD_SIZE);
+         printk("memset the area!");
+      }
+
+      fileok = load_file(device, part, initrd,
+                         initrd_base,
+                         initrd_base + INITRD_SIZE,
+                         &initrd_len, 1, NULL);
+      printk("load complete!\n");
+
+      if (!fileok) {
+         printk("Initrd '%s' not found.\n", initrd);
+         continue;
+      }
+
+      if (initrd_len > INITRD_SIZE) {
+         printk("Initrd is too large (%u > %u)\n", initrd_len,
+                INITRD_SIZE);
+         continue;
+      }
+
       break;
    }
 
    /* After this memmove, *p and *e may have been overwritten. */
-   memmove((void *)load_loc, TMP_BUF + off, len);
+   memmove((void *)load_loc, load_buf + off, len);
    flush_cache(load_loc, len);
 
    close();
    if (bi.flags & DEBUG_BEFORE_BOOT) {
-      printk("Load location: 0x%x\n", load_loc);
+      if (bi.flags & BOOT_NEW_WAY) {
+         printk("Booting new way.\n");
+      } else {
+         printk("Booting old QUIK way.\n");
+      }
+
+      printk("Kernel: 0x%x @ 0x%x\n", image_len, load_loc);
+      printk("Initrd: 0x%x @ 0x%x\n", initrd_len, initrd_base);
       printk("Kernel parameters: %s\n", params);
       printk(pause_message);
       prom_pause();
@@ -569,6 +647,18 @@ int main(void *prom_entry, struct first_info *fip, unsigned long id)
    }
    printk("Starting at %x\n", start);
 
-   (* (void (*)()) start)(params, 0, prom_entry, 0, 0);
+   if (bi.flags & BOOT_NEW_WAY) {
+      set_bootargs(params);
+      (* (void (*)()) start)(initrd_base, initrd_len, prom_entry, 0, 0);
+   } else {
+
+      /*
+       * 2.2 and 2.4 kernels can be called in this way, with params
+       * being passed through r3. This does not work for kernels >= 2.6,
+       * which get params through /chosen/bootargs, and expect initrd
+       * info in r3 and r4.
+       */
+      (* (void (*)()) start)(params, 0, prom_entry, 0, 0);
+   }
    prom_exit();
 }

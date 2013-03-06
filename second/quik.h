@@ -2,6 +2,24 @@
  * Global procedures and variables for the quik second-stage bootstrap.
  */
 
+typedef unsigned int fs_len_t;
+
+typedef enum {
+  ERR_NONE,
+
+  /* Cannot open device. */
+  ERR_DEV_OPEN,
+
+  /* Cannot open volume as file system. */
+  ERR_FS_OPEN,
+
+  /* File not found. */
+  ERR_FS_NOT_FOUND,
+
+  /* Internal ext2fs error. */
+  ERR_FS_EXT2FS,
+} quik_err_t;
+
 typedef struct {
 
   /* Boot device path. */
@@ -12,6 +30,8 @@ typedef struct {
 #define PAUSE_BEFORE_BOOT     (1 << 3)
 #define DEBUG_BEFORE_BOOT     (1 << 4)
 #define TRIED_AUTO            (1 << 5)
+#define BOOT_NEW_WAY          (1 << 6)
+#define BOOT_CLAIM_MEM        (1 << 7)
   unsigned flags;
 
   /* Config file path. E.g. /etc/quik.conf */

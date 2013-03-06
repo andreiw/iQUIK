@@ -26,3 +26,7 @@ void prom_get_options(char *name, char *buf, int buflen);
 void prom_map(unsigned char *addr, unsigned len);
 int get_ms(void);
 void prom_pause(void);
+void *prom_claim_chunk(void *virt,
+                       unsigned int size,
+                       unsigned int align);
+void *prom_claim(void *virt, unsigned int size, unsigned int align);
