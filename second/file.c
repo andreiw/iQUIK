@@ -26,10 +26,12 @@
 #include <errno.h>
 #include "quik.h"
 
-typedef int FILE;
+typedef unsigned __u32;
+typedef unsigned u32;
+typedef unsigned char u8;
 #include <linux/ext2_fs.h>
 #include <ext2fs/ext2fs.h>
-#include <setjmp.h>
+#include "setjmp.h"
 #include <asm/mac-part.h>
 
 static errcode_t linux_open (const char *name, int flags, io_channel * channel);
@@ -158,7 +160,7 @@ static int read_dos_partition(int part)
    /* check the MSDOS partition magic */
    if ( (blk[0x1fe] != 0x55) || (blk[0x1ff] != 0xaa) )
    {
-      printf("No MSDOS partition magic number on disk!\n");
+      printk("No MSDOS partition magic number on disk!\n");
       return 0;
    }
    if ( part >= 4 )
@@ -170,14 +172,14 @@ static int read_dos_partition(int part)
    return 1;
 }
 
-int sprintf (char *buf, char *fmt,...)
+int sprintk (char *buf, char *fmt,...)
 {
    strcpy (buf, fmt);
 }
 
 void com_err (const char *a, long i, const char *fmt,...)
 {
-   printf ((char *) fmt);
+   printk ((char *) fmt);
 }
 
 static errcode_t linux_open (const char *name, int flags, io_channel * channel)
@@ -225,7 +227,7 @@ static errcode_t linux_read_blk (io_channel channel, unsigned long block, int co
    tempb = (((long long) block) * ((long long)bs)) + doff;
    size = (count < 0) ? -count : count * bs;
    if (read (data, size, tempb) != size) {
-      printf ("\nRead error on block %d", block);
+      printk ("\nRead error on block %d", block);
       return EXT2_ET_SHORT_READ;
    }
    return 0;
@@ -256,7 +258,7 @@ static void rotate (int freq)
    static char rot[] = "\\|/-";
 
    if (!(i % freq))
-      printf ("%c\b", rot[(i / freq) % 4]);
+      printk ("%c\b", rot[(i / freq) % 4]);
    i++;
 }
 
@@ -317,7 +319,7 @@ static int dump_ext2(ino_t inode, char *filename)
    block_cnt = 0;
    retval = ext2fs_block_iterate(fs, inode, 0, 0, dump_block, 0);
    if (retval) {
-      printf ("Error %d reading %s", retval, filename);
+      printk ("Error %d reading %s", retval, filename);
       return 0;
    }
    return dump_finish();
@@ -345,7 +347,7 @@ int dump_device_range(char *filename, char *bogusdev, int *len,
       }
    }
    if (end == -1) {
-      printf ("\n"
+      printk ("\n"
               "Ranges of physical blocks are specified as {prom_path:}{partno}[xx-yy]\n"
               "where {} means optional part, partno defaults to 0 (i.e. whole disk)\n"
               "and xx is the starting block (chunk of 512 bytes) and yy end (not\n"
@@ -372,7 +374,7 @@ int dump_device_range(char *filename, char *bogusdev, int *len,
          }
       }
    }
-   printf ("\nInternal error while loading blocks from device\n");
+   printk ("\nInternal error while loading blocks from device\n");
    return 0;
 }
 
@@ -411,16 +413,16 @@ int load_file(char *device, int partno, char *filename,
    retval = ext2fs_namei(fs, root, cwd, filename, &inode);
    if (retval) {
       if (retval == EXT2_ET_FILE_NOT_FOUND) {
-         printf("File '%s' does not exist.", filename);
+         printk("File '%s' does not exist.", filename);
       } else {
-         printf("ext2fs error 0x%x while loading file %s.", retval, filename);
+         printk("ext2fs error 0x%x while loading file %s.", retval, filename);
       }
       ext2fs_close(fs);
       return 0;
    }
    size = get_len(inode);
    if (buffer + size > limit) {
-      fatal ("Image too large to fit in destination");
+      printk("Image too large to fit in destination");
       return 0;
    }
 

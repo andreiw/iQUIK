@@ -34,11 +34,10 @@ typedef struct {
   char *pause_message;
 } boot_info_t;
 
-int diskinit(boot_info_t *bi);
+void diskinit(boot_info_t *bi);
 void cmdedit(void (*tabfunc)(boot_info_t *), boot_info_t *bi, int c);
 
 extern char cbuff[];
-extern char bootdevice[];
 
 int cfg_parse(char *cfg_file, char *buff, int len);
 char *cfg_get_strg(char *image, char *item);

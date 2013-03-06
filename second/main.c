@@ -47,14 +47,14 @@ static int given_bootargs_by_user = 0;
 
 void fatal(const char *msg)
 {
-   printf("\nFatal error: %s\n", msg);
+   printk("\nFatal error: %s\n", msg);
 }
 
 void maintabfunc(boot_info_t *bi)
 {
    if (bi->flags & CONFIG_VALID) {
       cfg_print_images();
-      printf("boot: %s", cbuff);
+      printk("boot: %s", cbuff);
    }
 }
 
@@ -66,15 +66,6 @@ void parse_name(char *imagename,
 {
    int n;
    char *endp;
-
-   /*
-    * Assume partition 2 if no other has been explicitly set
-    * in the config file -- Cort
-    */
-   if (defpart == -1) {
-      defpart = 2;
-      printf("no parition explicitely set - assuming 2\n");
-   }
 
    *kname = strchr(imagename, ':');
    if (!*kname) {
@@ -90,10 +81,8 @@ void parse_name(char *imagename,
    if (endp != *kname) {
       *part = n;
       *kname = endp;
-   } else if (defpart != -1) {
-      *part = defpart;
    } else {
-      *part = 0;
+      *part = defpart;
    }
 
    /* Range */
@@ -252,7 +241,7 @@ int get_params(boot_info_t *bi,
       }
    }
 
-   printf("boot: ");
+   printk("boot: ");
    c = -1;
    if (timeout != -1) {
       beg = get_ms();
@@ -268,16 +257,16 @@ int get_params(boot_info_t *bi,
    }
 
    if (c == '\n') {
-      printf("%s", *kname);
+      printk("%s", *kname);
       if (*params) {
-         printf(" %s", *params);
+         printk(" %s", *params);
       }
 
-      printf("\n");
+      printk("\n");
    } else {
       cmdinit();
       cmdedit(maintabfunc, bi, c);
-      printf("\n");
+      printk("\n");
       strcpy(given_bootargs, cbuff);
       given_bootargs_by_user = 1;
       *kname = cbuff;
@@ -347,7 +336,7 @@ int get_params(boot_info_t *bi,
    }
 
    if (!*kname) {
-      printf(
+      printk(
          "Enter the kernel image name as [device:][partno]/path, where partno is a\n"
          "number from 0 to 16.  Instead of /path you can type [mm-nn] to specify a\n"
          "range of disk blocks (512B)\n");
@@ -360,27 +349,31 @@ int get_params(boot_info_t *bi,
  * Print the specified message file.
  */
 static void
-print_message_file(char *p)
+print_message_file(boot_info_t *bi, char *p)
 {
    char *q, *endp;
    int len = 0;
-   int n, defpart = -1;
+   int n, defpart = bi->config_part;
    char *device, *kname;
    int part;
 
    q = cfg_get_strg(0, "partition");
    if (q) {
       n = strtol(q, &endp, 10);
-      if (endp != q && *endp == 0)
+      if (endp != q && *endp == 0) {
          defpart = n;
+      }
    }
+
    parse_name(p, defpart, &device, &part, &kname);
    if (kname) {
-      if (!device)
+      if (!device) {
          device = cfg_get_strg(0, "device");
+      }
+
       if (load_file(device, part, kname, TMP_BUF, TMP_END, &len, 1, 0)) {
          TMP_BUF[len] = 0;
-         printf("\n%s", (char *)TMP_BUF);
+         printk("\n%s", (char *)TMP_BUF);
       }
    }
 }
@@ -388,7 +381,7 @@ print_message_file(char *p)
 int get_bootargs(boot_info_t *bi)
 {
    prom_get_chosen("bootargs", bi->of_bootargs, sizeof(bi->of_bootargs));
-   printf("Passed arguments: '%s'\n", bi->of_bootargs);
+   printk("Passed arguments: '%s'\n", bi->of_bootargs);
    bi->bootargs = bi->of_bootargs;
    return 0;
 }
@@ -426,24 +419,19 @@ int main(void *prom_entry, struct first_info *fip, unsigned long id)
    }
 
    prom_init(prom_entry);
-   printf("\niQUIK OldWorld Bootloader\nCopyright (C) 2013 Andrei Warkentin\n");
+   printk("\niQUIK OldWorld Bootloader\nCopyright (C) 2013 Andrei Warkentin\n");
    get_bootargs(&bi);
 
-   /*
-    * AndreiW: FIXME, let the user enter a boot device path.
-    */
-   if (diskinit(&bi) == -1) {
-      printf("Could not determine the boot device\n");
-      prom_exit();
-   }
-
-   printf("Configuration file @ %s:%d%s\n", bi.bootdevice,
-          bi.config_part,
-          bi.config_file);
-
-   if (bi.config_file &&
-       bi.config_part >= 0) {
+   diskinit(&bi);
+   if (!bi.bootdevice ||
+       bi.config_part == 0) {
+      printk("Skipping loading configuration file due to missing or invalid configuration.\n");
+   } else {
       int len;
+
+      printk("Configuration file @ %s:%d%s\n", bi.bootdevice,
+             bi.config_part,
+             bi.config_file);
 
       fileok = load_file(bi.bootdevice,
                          bi.config_part,
@@ -452,11 +440,11 @@ int main(void *prom_entry, struct first_info *fip, unsigned long id)
                          TMP_END,
                          &len, 1, 0);
       if (!fileok || (unsigned) len >= 65535) {
-         printf("\nCouldn't load '%s'.\n", bi.config_file);
+         printk("\nCouldn't load '%s'.\n", bi.config_file);
       } else {
          char *p;
          if (cfg_parse(bi.config_file, TMP_BUF, len) < 0) {
-            printf ("Syntax error or read error in %s.\n", bi.config_file);
+            printk ("Syntax error or read error in %s.\n", bi.config_file);
          }
 
          bi.flags |= CONFIG_VALID;
@@ -467,16 +455,14 @@ int main(void *prom_entry, struct first_info *fip, unsigned long id)
 
          p = cfg_get_strg(0, "init-message");
          if (p) {
-            printf("%s\n", p);
+            printk("%s\n", p);
          }
 
          p = cfg_get_strg(0, "message");
          if (p) {
-            print_message_file(p);
+            print_message_file(&bi, p);
          }
       }
-   } else {
-      printf ("\n");
    }
 
    for (;;) {
@@ -489,12 +475,12 @@ int main(void *prom_entry, struct first_info *fip, unsigned long id)
                          TMP_BUF, TMP_END, &image_len, 1, 0);
 
       if (!fileok) {
-         printf ("\nImage '%s' not found.\n", kname);
+         printk ("\nImage '%s' not found.\n", kname);
          continue;
       }
 
       if (image_len > TMP_END - TMP_BUF) {
-         printf("\nImage is too large (%u > %u)\n", image_len,
+         printk("\nImage is too large (%u > %u)\n", image_len,
                 TMP_END - TMP_BUF);
          continue;
       }
@@ -507,13 +493,13 @@ int main(void *prom_entry, struct first_info *fip, unsigned long id)
             e->e_ident[EI_MAG1] == ELFMAG1 &&
             e->e_ident[EI_MAG2] == ELFMAG2 &&
             e->e_ident[EI_MAG3] == ELFMAG3)) {
-         printf ("\n%s: unknown image format\n", kname);
+         printk ("\n%s: unknown image format\n", kname);
          continue;
       }
 
       if (e->e_ident[EI_CLASS] != ELFCLASS32
           || e->e_ident[EI_DATA] != ELFDATA2MSB) {
-         printf("Image is not a 32bit MSB ELF image\n");
+         printk("Image is not a 32bit MSB ELF image\n");
          continue;
       }
 
@@ -531,7 +517,7 @@ int main(void *prom_entry, struct first_info *fip, unsigned long id)
       }
 
       if (len == 0) {
-         printf("Cannot find a loadable segment in ELF image\n");
+         printk("Cannot find a loadable segment in ELF image\n");
          continue;
       }
 
@@ -549,15 +535,15 @@ int main(void *prom_entry, struct first_info *fip, unsigned long id)
 
    close();
    if (bi.flags & DEBUG_BEFORE_BOOT) {
-      printf("Load location: 0x%x\n", load_loc);
-      printf("Kernel parameters: %s\n", params);
-      printf(pause_message);
+      printk("Load location: 0x%x\n", load_loc);
+      printk("Kernel parameters: %s\n", params);
+      printk(pause_message);
       prom_pause();
-      printf("\n");
+      printk("\n");
    } else if (bi.flags & PAUSE_BEFORE_BOOT) {
-      printf("%s", bi.pause_message);
+      printk("%s", bi.pause_message);
       prom_pause();
-      printf("\n");
+      printk("\n");
    }
 
    /*
@@ -581,7 +567,7 @@ int main(void *prom_entry, struct first_info *fip, unsigned long id)
          start += entry;
       }
    }
-   printf("Starting at %x\n", start);
+   printk("Starting at %x\n", start);
 
    (* (void (*)()) start)(params, 0, prom_entry, 0, 0);
    prom_exit();

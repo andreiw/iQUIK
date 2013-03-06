@@ -100,10 +100,10 @@ void cfg_error (char *msg,...)
    va_list ap;
 
    va_start (ap, msg);
-   printf ("Config file error: ");
-   vprintf (msg, ap);
+   printk ("Config file error: ");
+   vprintk (msg, ap);
    va_end (ap);
-   printf (" near line %d in file %s\n", line_num, file_name);
+   printk (" near line %d in file %s\n", line_num, file_name);
    longjmp (env, 1);
 }
 
@@ -112,10 +112,10 @@ void cfg_warn (char *msg,...)
    va_list ap;
 
    va_start (ap, msg);
-   printf ("Config file warning: ");
-   vprintf (msg, ap);
+   printk ("Config file warning: ");
+   vprintk (msg, ap);
    va_end (ap);
-   printf (" near line %d in file %s\n", line_num, file_name);
+   printk (" near line %d in file %s\n", line_num, file_name);
 }
 
 inline int getc ()
@@ -373,8 +373,8 @@ static void printlabel (char *label)
    int len = strlen (label);
 
    if (!printl_count)
-      printf ("\n");
-   printf ("%s", label);
+      printk ("\n");
+   printk ("%s", label);
    while (len++ < 25)
       putchar (' ');
    printl_count++;
@@ -401,7 +401,7 @@ void cfg_print_images (void)
       if (alias)
          printlabel (alias);
    }
-   printf ("\nYou can also type in custom image locations, in the form\n"
+   printk ("\nYou can also type in custom image locations, in the form\n"
            "{prom_path;}partno/path_to_image or {prom_path;}{partno}[start-end]\n");
 }
 

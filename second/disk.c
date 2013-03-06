@@ -9,7 +9,7 @@ int open(char *device)
 {
    current_dev = call_prom("open", 1, 1, device);
    if (current_dev == (ihandle) 0 || current_dev == (ihandle) -1) {
-      printf("\nCouldn't open %s\n", device);
+      printk("\nCouldn't open %s\n", device);
       return -1;
    }
    strcpy(current_devname, device);
@@ -33,23 +33,34 @@ char *strstr(const char * s1,const char * s2)
    return NULL;
 }
 
-int diskinit(boot_info_t *bi)
+void diskinit(boot_info_t *bi)
 {
    char *p;
 
    if (bi->flags & BOOT_FROM_SECTOR_ZERO) {
       bi->bootdevice = bi->bootargs;
       word_split(&bi->bootdevice, &bi->bootargs);
+
+      if (!bi->bootdevice) {
+         printk("No booting device passed as argument.\n");
+         return;
+      }
    } else {
+      bi->bootdevice = NULL;
+
       prom_get_chosen("bootpath", bi->of_bootdevice, sizeof(bi->of_bootdevice));
       if (bi->of_bootdevice[0] == 0) {
          prom_get_options("boot-device", bi->of_bootdevice, sizeof(bi->of_bootdevice));
-         if (bi->of_bootdevice[0] == 0) {
-            return -1;
-         }
       }
 
-      bi->bootdevice = bi->of_bootdevice;
+      if (bi->of_bootdevice[0] != 0) {
+         bi->bootdevice = bi->of_bootdevice;
+      }
+
+      if (!bi->bootdevice) {
+         printk("Could not figure out booting device from either /chosen/bootpath or boot-device.\n");
+         return;
+      }
    }
 
    p = strchr(bi->bootdevice, ':');
@@ -73,16 +84,18 @@ int diskinit(boot_info_t *bi)
 
    if ((bi->flags & BOOT_FROM_SECTOR_ZERO) &&
        bi->config_part == 0) {
-      printf("When booting via sector zero, you *must* provide the device path as an argument!\n");
-      return -1;
+
+      /* No idea where's we looking for the configuration file. */
+      printk("Booting device did not specify partition\n");
+      return;
    }
 
-   if(open(bi->bootdevice)) {
-      return open(bi->bootdevice);
+   if (open(bi->bootdevice)) {
+      printk("Couldn't open '%s' - bad parameter or changed hardware.\n");
+      bi->bootdevice = NULL;
    }
-
-   return 0;
 }
+
 
 int read(char *buf, int nbytes, long long offset)
 {
@@ -98,7 +111,7 @@ int read(char *buf, int nbytes, long long offset)
 
 void close()
 {
-   printf("Closing 0x%x\n", current_dev);
+   printk("Closing 0x%x\n", current_dev);
    call_prom("close", 1, 1, current_dev);
 }
 

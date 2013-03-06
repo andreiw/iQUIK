@@ -1,6 +1,7 @@
 /*
  * quik - bootblock installation program for Linux on Power Macintosh.
  *
+ * Copyright (C) 2013 Andrei Warkentin <andrey.warkentin@gmail.c>
  * Copyright (C) 1996 Paul Mackerras.
  *
  * Derived from silo.c in the silo-0.6.4 distribution, therefore:
@@ -29,6 +30,9 @@
 #include <stdarg.h>
 #include <string.h>
 #include <stdlib.h>
+
+typedef unsigned u32;
+typedef unsigned char u8;
 #include <linux/fs.h>
 #include <linux/ext2_fs.h>
 #include <sys/stat.h>
@@ -331,22 +335,21 @@ void write_block_table(char *device, char *config_file, int partno)
 
 void usage(char *s)
 {
-   printf("\
-QUIK " VERSION " Disk bootstrap installer for Powermac/Linux\n\
-Usage: %s [options]\n\
-Options:\n\
- -r root_path chroots into root_path (all paths relative to this)\n\
- -b secondary use secondary as second stage boot instead of /boot/second.b\n\
- -i primary   install primary as first stage boot, instead of /boot/first.b\n\
- -C config    specify alternate config file instead of /etc/silo.conf\n\
-              (the config file has to reside on the same physical disk as\n\
-              the second stage loader, but can be in a different partition)\n\
- -s backup    save your old bootblock only if backup doesn't exist yet\n\
- -S backup    force saving your old bootblock into backup\n\
- -f           force overwriting of bootblock, even if quik already installed\n\
- -F           install first stage to floppy
- -v           verbose mode\n\
- -V           show version\n" ,s);
+   printf("QUIK " VERSION " Disk bootstrap installer for Powermac/Linux\n"
+          "Usage: %s [options]\n"
+          "Options:\n"
+          " -r root_path chroots into root_path (all paths relative to this)\n"
+          " -b secondary use secondary as second stage boot instead of /boot/second.b\n"
+          " -i primary   install primary as first stage boot, instead of /boot/first.b\n"
+          " -C config    specify alternate config file instead of /etc/quik.conf\n"
+          "              (the config file has to reside on the same physical disk as\n"
+          "              the second stage loader, but can be in a different partition)\n"
+          " -s backup    save your old bootblock only if backup doesn't exist yet\n"
+          " -S backup    force saving your old bootblock into backup\n"
+          " -f           force overwriting of bootblock, even if quik already installed\n"
+          " -F           install first stage to floppy"
+          " -v           verbose mode\n"
+          " -V           show version\n" ,s);
    exit (1);
 }
 

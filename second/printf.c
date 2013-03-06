@@ -21,56 +21,22 @@
 #include <stdarg.h>
 #include "quik.h"
 
-static void printn(long, int);
-extern void vprintf(char *, va_list);
-
 /*
- * Scaled down version of C Library printf.
- * Only %c %s %u %d (==%u) %o %x %D %O are recognized.
+ * Print a string.
  */
-
-void printf (char *fmt,...)
+static void printks(char *s)
 {
-   va_list x1;
+   char c;
 
-   va_start (x1, fmt);
-   vprintf (fmt, x1);
-   va_end (x1);
-}
-
-void vprintf (char *fmt, va_list adx)
-{
-   register c;
-   char *s;
-
-   for (;;) {
-      while ((c = *fmt++) != '%') {
-         if (c == '\0') {
-            putchar (0);
-            return;
-         }
-         putchar (c);
-      }
-      c = *fmt++;
-      if (c == 'd' || c == 'o' || c == 'x' || c == 'X') {
-         printn ((long) va_arg (adx, unsigned),
-                 c == 'o' ? 8 : (c == 'd' ? 10 : 16));
-      } else if (c == 'c') {
-         putchar (va_arg (adx, unsigned));
-      } else if (c == 's') {
-         s = va_arg (adx, char *);
-         while (c = *s++)
-            putchar (c);
-      } else if (c == 'l' || c == 'O') {
-         printn ((long) va_arg (adx, long), c == 'l' ? 10 : 8);
-      }
+   while (c = *s++) {
+      putchar(c);
    }
 }
 
 /*
  * Print an unsigned integer in base b, avoiding recursion.
  */
-static void printn (long n, int b)
+static void printkn(long n, int b)
 {
    char prbuf[24];
    register char *cp;
@@ -79,11 +45,61 @@ static void printn (long n, int b)
       putchar ('-');
       n = -n;
    }
+
    cp = prbuf;
-   do
+   do {
       *cp++ = "0123456789ABCDEF"[(int) (n % b)];
-   while (n = n / b & 0x0FFFFFFF);
-   do
+   } while (n = n / b & 0x0FFFFFFF);
+
+   do {
       putchar (*--cp);
-   while (cp > prbuf);
+   } while (cp > prbuf);
+}
+
+void vprintk(char *fmt, va_list adx)
+{
+   register c;
+   char *s;
+
+   for (;;) {
+      while ((c = *fmt++) != '%') {
+         if (c == '\0') {
+            putchar(0);
+            return;
+         }
+
+         putchar(c);
+      }
+      c = *fmt++;
+      if (c == 'u' || c == 'd' || c == 'o' ||
+          c == 'x' || c == 'X') {
+         printkn((long) va_arg(adx, unsigned),
+                c == 'o' ? 8 : ((c == 'd') || (c == 'u') ? 10 : 16));
+      } else if (c == 'c') {
+         putchar(va_arg(adx, unsigned));
+      } else if (c == 's') {
+         s = va_arg(adx, char *);
+         if (s) {
+            printks(s);
+         } else {
+            printks("<NULL>");
+         }
+      } else if (c == 'l' || c == 'O') {
+         printkn((long) va_arg(adx, long), c == 'l' ? 10 : 8);
+      }
+   }
+}
+
+/*
+ * Scaled down version of C Library printf.
+ * Only %c %s %u %d (==%u) %o %x %D %O are recognized.
+ */
+
+void printk(char *fmt,...)
+{
+   va_list x1;
+
+   va_start(x1, fmt);
+   vprintk(fmt, x1);
+   va_end(x1);
 }

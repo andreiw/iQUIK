@@ -2,7 +2,7 @@
 ## Linux Loader for Macintosh
 ##
 
-CFLAGS = -I../include -O2 -D__NO_STRING_INLINES
+CFLAGS = -I../include -O2 -D__NO_STRING_INLINES -nostdlib -fno-builtin
 ASFLAGS=-D__ASSEMBLY__ -I../include
 LDFLAGS=-T ld.script -N -Ttext 0x3e0000
 
