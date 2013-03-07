@@ -12,6 +12,7 @@
  * Copyright (C) 1996 Paul Mackerras.
  *
  * Portion from Linux kernel prom_init.c, so:
+ * Copyright (C) 1996-2005 Paul Mackerras.
  */
 
 #include <stdarg.h>
@@ -29,6 +30,10 @@ ihandle prom_aliases;
 ihandle prom_options;
 ihandle prom_mmu;
 ihandle prom_memory;
+
+/* OF 1.0.5 claim bug. */
+#define PROM_CLAIM_WORK_AROUND (1 << 1)
+static unsigned prom_flags = 0;
 
 struct prom_args {
    char *service;
@@ -121,12 +126,16 @@ nbgetchar()
 void
 prom_init(void (*pp)(void *))
 {
+   ihandle oprom;
+   char ver[64];
+
    prom_entry = pp;
 
    /* First get a handle for the stdout device */
    prom_chosen = call_prom("finddevice", 1, 1, "/chosen");
-   if (prom_chosen == (void *)-1)
+   if (prom_chosen == (void *) -1){
       prom_exit();
+   }
 
    prom_memory = call_prom("open", 1, 1, "/memory");
    getpromprop(prom_chosen, "mmu", &prom_mmu, sizeof(prom_mmu));
@@ -134,6 +143,13 @@ prom_init(void (*pp)(void *))
    getpromprop(prom_chosen, "stdout", &prom_stdout, sizeof(prom_stdout));
    getpromprop(prom_chosen, "stdin", &prom_stdin, sizeof(prom_stdin));
    prom_options = call_prom("finddevice", 1, 1, "/options");
+
+   ver[0] = '\0';
+   oprom = call_prom("finddevice", 1, 1, "/openprom");
+   getpromprop(oprom, "model", ver, sizeof(ver));
+   if (strcmp(ver, "Open Firmware, 1.0.5") == 0) {
+      prom_flags |= PROM_CLAIM_WORK_AROUND;
+   }
 }
 
 void
@@ -187,34 +203,39 @@ prom_claim(void *virt, unsigned int size, unsigned int align)
    int ret;
    void *result;
 
-   /*
-    * Old OF requires we claim physical and virtual separately
-    * and then map explicitly (assuming virtual mode)
-    */
+   if ((prom_flags & PROM_CLAIM_WORK_AROUND) &&
+       align == 0)
+   {
 
-   ret = (int) call_prom("call-method", 5, 2, &result,
-                         "claim", prom_memory,
-                         align, size, virt);
-   if (ret != 0 || result == (void *) -1) {
-      return (void *) -1;
+      /*
+       * Old OF requires we claim physical and virtual separately
+       * and then map explicitly (assuming virtual mode)
+       */
+
+      ret = (int) call_prom("call-method", 5, 2, &result,
+                            "claim", prom_memory,
+                            align, size, virt);
+      if (ret != 0 || result == (void *) -1) {
+         return (void *) -1;
+      }
+
+      ret = (int) call_prom("call-method", 5, 2, &result,
+                            "claim", prom_mmu,
+                            align, size, virt);
+      if (ret != 0) {
+         call_prom("call-method", 4, 1, "release",
+                   prom_memory, size, virt);
+         return (void *) -1;
+      }
+
+      /* the 0x12 is M (coherence) + PP == read/write */
+      call_prom("call-method", 6, 1,
+                "map", prom_mmu, 0x12, size, virt, virt);
+
+      return virt;
    }
 
-   ret = (int) call_prom("call-method", 5, 2, &result,
-                         "claim", prom_mmu,
-                         align, size, virt);
-   if (ret != 0) {
-      call_prom("call-method", 4, 1, "release",
-                prom_memory, size, virt);
-      return (void *) -1;
-   }
-
-   /* the 0x12 is M (coherence) + PP == read/write */
-   call_prom("call-method", 6, 1,
-             "map", prom_mmu, 0x12, size, virt, virt);
-
-   return virt;
-
-   /* return call_prom("claim", 3, 1, virt, size, align); */
+   return call_prom("claim", 3, 1, virt, size, align);
 }
 
 /*
