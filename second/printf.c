@@ -21,6 +21,15 @@
 #include <stdarg.h>
 #include "quik.h"
 
+static char *errors = {
+  "ERR_NONE",
+  "ERR_DEV_OPEN",
+  "ERR_FS_OPEN",
+  "ERR_FS_NOT_FOUND",
+  "ERR_FS_EXT2FS",
+  "<Unknown>"
+};
+
 /*
  * Print a string.
  */
@@ -30,6 +39,18 @@ static void printks(char *s)
 
    while (c = *s++) {
       putchar(c);
+   }
+}
+
+/*
+ * Print an error.
+ */
+static void printkr(quik_err_t err)
+{
+   if (err < ERR_LAST) {
+      printks(errors[err]);
+   } else {
+      printks(errors[ERR_LAST]);
    }
 }
 
@@ -122,7 +143,7 @@ void vprintk(char *fmt, va_list adx)
 
 /*
  * Scaled down version of C Library printf.
- * Only %c %s %u %d %i %u %o %x %p  are recognized.
+ * Only %c %s %u %d %i %u %o %x %p %r are recognized.
  */
 
 void printk(char *fmt,...)

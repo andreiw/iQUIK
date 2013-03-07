@@ -18,6 +18,8 @@ typedef enum {
 
   /* Internal ext2fs error. */
   ERR_FS_EXT2FS,
+
+  ERR_LAST
 } quik_err_t;
 
 typedef struct {
@@ -30,7 +32,7 @@ typedef struct {
 #define PAUSE_BEFORE_BOOT     (1 << 3)
 #define DEBUG_BEFORE_BOOT     (1 << 4)
 #define TRIED_AUTO            (1 << 5)
-#define BOOT_OLD_WAY          (1 << 6)
+#define BOOT_PRE_2_4          (1 << 6)
   unsigned flags;
 
   /* Config file path. E.g. /etc/quik.conf */

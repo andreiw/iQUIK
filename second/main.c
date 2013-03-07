@@ -1,6 +1,7 @@
 /*
  * Second stage boot loader
  *
+ * Copyright (C) 2013 Andrei Warkentin <andrey.warkentin@gmail.com>
  * Copyright (C) 1996 Paul Mackerras.
  *
  * Because this program is derived from the corresponding file in the
@@ -31,12 +32,12 @@
 #include <inttypes.h>
 #include <string.h>
 #include "elf.h"
+#include "file.h"
 #include <layout.h>
 
-#define TMP_BUF         ((unsigned char *) 0x14000)
-#define TMP_END         ((unsigned char *) SECOND_BASE)
-#define INITRD_BASE     ((unsigned char *) 0x800000)
-#define INITRD_SIZE     (0x400000)
+#define LOW_BASE        ((unsigned char *) 0x14000)
+#define LOW_END         ((unsigned char *) SECOND_BASE)
+#define HIGH_BASE       ((unsigned char *) 0x800000)
 #define ADDRMASK        0x0fffffff
 
 static boot_info_t bi;
@@ -321,9 +322,9 @@ int get_params(boot_info_t *bi,
          }
 
          if (cfg_get_strg(label, "old-kernel")) {
-            bi->flags |= BOOT_OLD_WAY;
+            bi->flags |= BOOT_PRE_2_4;
          } else {
-            bi->flags &= ~BOOT_OLD_WAY;
+            bi->flags &= ~BOOT_PRE_2_4;
          }
 
          *params = make_params(bi, label, *params);
@@ -387,9 +388,9 @@ print_message_file(boot_info_t *bi, char *p)
          device = cfg_get_strg(0, "device");
       }
 
-      if (load_file(device, part, kname, TMP_BUF, TMP_END, &len, 1, 0)) {
-         TMP_BUF[len] = 0;
-         printk("\n%s", (char *)TMP_BUF);
+      if (load_file(device, part, kname, LOW_BASE, LOW_END, &len, 1, 0)) {
+         LOW_BASE[len] = 0;
+         printk("\n%s", (char *)LOW_BASE);
       }
    }
 }
@@ -406,7 +407,8 @@ int get_bootargs(boot_info_t *bi)
 int main(void *prom_entry, struct first_info *fip, unsigned long id)
 {
    unsigned off;
-   int i, len, image_len, initrd_len;
+   int i, len;
+   fs_len_t image_len, initrd_len;
    char *kname, *initrd, *params, *device;
    unsigned part;
    int fileok = 0;
@@ -453,14 +455,14 @@ int main(void *prom_entry, struct first_info *fip, unsigned long id)
       fileok = load_file(bi.bootdevice,
                          bi.config_part,
                          bi.config_file,
-                         TMP_BUF,
-                         TMP_END,
+                         LOW_BASE,
+                         LOW_END,
                          &len, 1, NULL);
       if (!fileok || (unsigned) len >= 65535) {
          printk("\nCouldn't load '%s'.\n", bi.config_file);
       } else {
          char *p;
-         if (cfg_parse(bi.config_file, TMP_BUF, len) < 0) {
+         if (cfg_parse(bi.config_file, LOW_BASE, len) < 0) {
             printk ("Syntax error or read error in %s.\n", bi.config_file);
          }
 
@@ -483,16 +485,40 @@ int main(void *prom_entry, struct first_info *fip, unsigned long id)
    }
 
    for (;;) {
+      quik_err_t err;
+
       get_params(&bi, &device, &part,
                  &kname, &initrd, &params);
       if (!kname) {
          continue;
       }
 
-      load_buf = TMP_BUF;
-      load_buf_end = TMP_END;
-
       printk("Loading %s\n", kname);
+      err = length_file(device, part, kname, &image_len);
+      if (err != ERR_NONE) {
+         printk("Error fetching size for '%s': %r\n", kname, err);
+         continue;
+      }
+
+      if ((image_len > (LOW_END - LOW_BASE)) &&
+          (bi.flags & BOOT_PRE_2_4) == 0) {
+         printk("Kernel '%s' too large to be loaded low and too old to be loaded high\n",
+                kname);
+      }
+
+      if (bi.flags & BOOT_PRE_2_4) {
+         load_buf = LOW_BASE;
+         load_buf_end = LOW_END;
+      } else {
+         load_buf = prom_claim_chunk(HIGH_BASE, len, 0);
+         if (load_buf == (char *) -1) {
+            printk("Couldn't allocate memory to load kernel.\n");
+            continue;
+         }
+
+         load_buf_end = load_buf + image_len;
+      }
+
       fileok = load_file(device, part, kname,
                          load_buf, load_buf_end,
                          &image_len, 1, NULL);
@@ -502,11 +528,6 @@ int main(void *prom_entry, struct first_info *fip, unsigned long id)
          continue;
       }
 
-      if (image_len > load_buf_end - load_buf) {
-         printk("\nImage is too large (%u > %u)\n", image_len,
-                load_buf_end - load_buf);
-         continue;
-      }
 
       /* By this point the first sector is loaded (and the rest of */
       /* the kernel) so we check if it is an executable elf binary. */
@@ -557,11 +578,19 @@ int main(void *prom_entry, struct first_info *fip, unsigned long id)
 
       printk("Loading %s\n", initrd);
 
-      /*
-       * Should get the length here and try claiming after
-       * the kernel..
-       */
-      initrd_base = prom_claim_chunk(INITRD_BASE, INITRD_SIZE, 0);
+      err = length_file(device, part, initrd, &initrd_len);
+      if (err != ERR_NONE) {
+         printk("Error fetching size for '%s': %r\n", initrd, err);
+         continue;
+      }
+
+      if ((unsigned) load_buf > HIGH_BASE) {
+         initrd_base = (unsigned) load_buf_end;
+      } else {
+         initrd_base = HIGH_BASE;
+      }
+
+      initrd_base = prom_claim_chunk(initrd_base, initrd_len, 0);
       if (initrd_base == (unsigned) -1) {
          printk("Claim failed\n");
          continue;
@@ -569,39 +598,40 @@ int main(void *prom_entry, struct first_info *fip, unsigned long id)
 
       fileok = load_file(device, part, initrd,
                          initrd_base,
-                         initrd_base + INITRD_SIZE,
+                         initrd_base + initrd_len,
                          &initrd_len, 1, NULL);
       if (!fileok) {
          printk("Initrd '%s' not found.\n", initrd);
          continue;
       }
 
-      if (initrd_len > INITRD_SIZE) {
-         printk("Initrd is too large (%u > %u)\n", initrd_len,
-                INITRD_SIZE);
-         continue;
-      }
-
       break;
    }
 
-   /*
-    * After this memmove, *p and *e may have been overwritten.
-    *
-    * The kernel has code to relocate self, but if it's booted on OF,
-    * it expects to be loaded at the correct address. This move
-    * can go away if/when the ELF load logic is rewritten to
-    * stop using [TMP_BUF, TMP_END).
-    */
-   memmove((void *)load_loc, load_buf + off, len);
+   if (bi.flags & BOOT_PRE_2_4) {
+
+      /*
+       * 2.2 kernels have to execute at PA = 0x0 on the PowerMac.
+       *
+       * After this memmove, *p and *e may have been overwritten.
+       */
+      memmove((void *)load_loc, load_buf + off, len);
+   } else {
+
+      /*
+       * Newer kernels can relocate themselves just fine, so we
+       * always load them high - they'll probably not fit in the low region
+       * anyway.
+       */
+      load_loc = load_buf + off;
+   }
+
    flush_cache(load_loc, len);
 
    close();
    if (bi.flags & DEBUG_BEFORE_BOOT) {
-      if (bi.flags & BOOT_OLD_WAY) {
-         printk("Booting old QUIK way.\n");
-      } else {
-         printk("Booting new way.\n");
+      if (bi.flags & BOOT_PRE_2_4) {
+         printk("Booting pre-2.4 kernel\n");
       }
 
       printk("Kernel: 0x%x @ 0x%x\n", image_len, load_loc);
@@ -637,24 +667,10 @@ int main(void *prom_entry, struct first_info *fip, unsigned long id)
          start += entry;
       }
    }
+
    printk("Starting at %x\n", start);
+   set_bootargs(params);
+   (* (void (*)()) start)(initrd_base, initrd_len, prom_entry, 0, 0);
 
-   if (bi.flags & BOOT_OLD_WAY) {
-
-      /*
-       * 2.2 and 2.4 kernels can be called in this way, with params
-       * being passed through r3. This does not work for kernels >= 2.6,
-       * which get params through /chosen/bootargs, and expect initrd
-       * info in r3 and r4.
-       */
-      (* (void (*)()) start)(params, 0, prom_entry, 0, 0);
-   } else {
-
-      /*
-       * 2.2 kernels can be booted like this as well.
-       */
-      set_bootargs(params);
-      (* (void (*)()) start)(initrd_base, initrd_len, prom_entry, 0, 0);
-   }
    prom_exit();
 }
