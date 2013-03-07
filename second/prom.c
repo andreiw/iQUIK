@@ -35,16 +35,18 @@ ihandle prom_memory;
 /* OF 1.0.5 claim bug. */
 #define PROM_CLAIM_WORK_AROUND    (1 << 1)
 
-/* OF 2.0.1 setprop doesn't do deep copy = no initrd. */
+/* Certain bugs need us to shim away OF from the kernel. */
 #define PROM_NEED_SHIM            (1 << 2)
-#define PROM_CLAIM_SETPROP_AROUND (1 << 3)
+
+/* OF 2.0.1 setprop doesn't do deep copy = no initrd. */
+#define PROM_SHALLOW_SETPROP      (1 << 3)
+
+/* 3400c or OF 2.0.1? Recent kernels hang initializing mediabay ATA. */
 #define PROM_HIDE_MEDIABAY_ATA    (1 << 4)
 static unsigned prom_flags = 0;
 
 static struct prom_args prom_args;
 of_shim_state_t of_shim_state;
-
-ihandle prom_mediabay_ata;
 
 void (*prom_entry)(void *);
 
@@ -140,7 +142,7 @@ prom_shim(struct prom_args *args)
     * This should be fixed in the kernel, but before it is,
     * older kernels still need to be able to boot.
     */
-   if (prom_flags & PROM_CLAIM_SETPROP_AROUND) {
+   if (prom_flags & PROM_SHALLOW_SETPROP) {
       if (strcmp(args->service, "getprop") == 0) {
          ihandle ih = (ihandle) args->args[0];
          char *name = (char *) args->args[1];
@@ -171,8 +173,8 @@ prom_shim(struct prom_args *args)
           strcmp(args->service, "parent") == 0) {
 
          prom_entry(args);
-         if (args->args[args->nargs] == prom_mediabay_ata) {
-            printk("hiding mediabay ATA\n");
+         if (args->args[args->nargs] ==
+             of_shim_state.mediabay_ata) {
             args->args[args->nargs] = 0;
          }
 
@@ -220,10 +222,10 @@ prom_init(void (*pp)(void *), boot_info_t *bi)
       prom_flags |= PROM_CLAIM_WORK_AROUND;
    } else if (strcmp(ver, "Open Firmware, 2.0.1") == 0) {
       prom_flags |= PROM_NEED_SHIM;
-      prom_flags |= PROM_CLAIM_SETPROP_AROUND;
+      prom_flags |= PROM_SHALLOW_SETPROP;
       prom_flags |= PROM_HIDE_MEDIABAY_ATA;
-      prom_mediabay_ata = call_prom("finddevice", 1, 1, "/bandit/ohare/media-bay/ata");
-      printk("prom_mediabay_ata @ 0x%x\n", prom_mediabay_ata);
+      of_shim_state.mediabay_ata =
+         call_prom("finddevice", 1, 1, "/bandit/ohare/media-bay/ata");
    }
 
    if (prom_flags & PROM_NEED_SHIM) {
