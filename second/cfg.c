@@ -52,7 +52,6 @@ CONFIG cf_options[] =
    {cft_flag, "read-write", NULL},
    {cft_strg, "append", NULL},
    {cft_strg, "initrd", NULL},
-   {cft_flag, "initrd-prompt", NULL},
    {cft_flag, "pause-after", NULL},
    {cft_strg, "pause-message", NULL},
    {cft_strg, "init-code", NULL},
@@ -73,6 +72,7 @@ CONFIG cf_image[] =
    {cft_strg, "append", NULL},
    {cft_strg, "literal", NULL},
    {cft_strg, "initrd", NULL},
+   {cft_flag, "old-kernel", NULL},
    {cft_flag, "pause-after", NULL},
    {cft_strg, "pause-message", NULL},
    {cft_end, NULL, NULL}};

@@ -30,8 +30,7 @@ typedef struct {
 #define PAUSE_BEFORE_BOOT     (1 << 3)
 #define DEBUG_BEFORE_BOOT     (1 << 4)
 #define TRIED_AUTO            (1 << 5)
-#define BOOT_NEW_WAY          (1 << 6)
-#define BOOT_CLAIM_MEM        (1 << 7)
+#define BOOT_OLD_WAY          (1 << 6)
   unsigned flags;
 
   /* Config file path. E.g. /etc/quik.conf */
@@ -67,4 +66,3 @@ char *cfg_get_default(void);
 
 void *malloc(unsigned);
 
-void prom_pause(void);

@@ -234,7 +234,6 @@ prom_claim_chunk(void *virt,
 
      found = prom_claim(addr, size, 0);
      if (found != (void *)-1) {
-        printk("claimed %u at 0x%x (expected 0x%x)\n",size, (int) found, (int) virt);
         return found;
      }
   }

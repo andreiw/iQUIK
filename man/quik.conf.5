@@ -110,6 +110,16 @@ program.  If the image name begins with a dollar sign ($), the rest of
 the image name is taken as a forth command which will be executed by
 Open Firmware, instead of loading and running an executable program.
 .TP
+.BI initrd= path
+Specifies the path for the initial ram disk image to load along with
+the kernel.
+.TP
+.BI old-kernel
+Specifies that you're booting a really old kernel (2.2). This should
+not be set for 2.4 and 2.6 kernels, unless for some reason you're not
+seeing the command line getting passed. Note, that if this is set,
+initrd images will not work. This is a local option only.
+.TP
 .BI label= label
 Specifies that \fIlabel\fR is a shorthand name for the current image.
 This is a local option only.

@@ -320,20 +320,18 @@ int get_params(boot_info_t *bi,
             *initrd = p;
          }
 
+         if (cfg_get_strg(label, "old-kernel")) {
+            bi->flags |= BOOT_OLD_WAY;
+         } else {
+            bi->flags &= ~BOOT_OLD_WAY;
+         }
+
          *params = make_params(bi, label, *params);
       }
    }
 
    if (!strcmp(*kname, "!debug")) {
       bi->flags |= DEBUG_BEFORE_BOOT;
-      *kname = NULL;
-      return 0;
-   } if (!strcmp(*kname, "!new")) {
-      bi->flags |= BOOT_NEW_WAY;
-      *kname = NULL;
-      return 0;
-   } if (!strcmp(*kname, "!claim")) {
-      bi->flags |= BOOT_CLAIM_MEM;
       *kname = NULL;
       return 0;
    } else if (!strcmp(*kname, "!halt")) {
@@ -493,12 +491,6 @@ int main(void *prom_entry, struct first_info *fip, unsigned long id)
 
       load_buf = TMP_BUF;
       load_buf_end = TMP_END;
-      if (bi.flags & BOOT_CLAIM_MEM) {
-         load_buf = prom_claim_chunk(load_buf, load_buf_end - load_buf, 0);
-         if (load_buf == (char *) -1) {
-            printk("claim failed\n");
-         }
-      }
 
       printk("Loading %s\n", kname);
       fileok = load_file(device, part, kname,
@@ -564,28 +556,21 @@ int main(void *prom_entry, struct first_info *fip, unsigned long id)
       }
 
       printk("Loading %s\n", initrd);
-      initrd_base = prom_claim_chunk(INITRD_BASE, INITRD_SIZE, 0);
-      if (initrd_base == (char *) -1) {
-         printk("claim failed\n");
-      } else {
-         printk("claimed 0x%x\n", initrd_base);
-      }
 
-      {
-         char *probe = (char *) initrd_base;
-         printk("probing...\n");
-         *probe = 1;
-         printk("safe???\n");
-         memset(probe, 0, INITRD_SIZE);
-         printk("memset the area!");
+      /*
+       * Should get the length here and try claiming after
+       * the kernel..
+       */
+      initrd_base = prom_claim_chunk(INITRD_BASE, INITRD_SIZE, 0);
+      if (initrd_base == (unsigned) -1) {
+         printk("Claim failed\n");
+         continue;
       }
 
       fileok = load_file(device, part, initrd,
                          initrd_base,
                          initrd_base + INITRD_SIZE,
                          &initrd_len, 1, NULL);
-      printk("load complete!\n");
-
       if (!fileok) {
          printk("Initrd '%s' not found.\n", initrd);
          continue;
@@ -600,16 +585,23 @@ int main(void *prom_entry, struct first_info *fip, unsigned long id)
       break;
    }
 
-   /* After this memmove, *p and *e may have been overwritten. */
+   /*
+    * After this memmove, *p and *e may have been overwritten.
+    *
+    * The kernel has code to relocate self, but if it's booted on OF,
+    * it expects to be loaded at the correct address. This move
+    * can go away if/when the ELF load logic is rewritten to
+    * stop using [TMP_BUF, TMP_END).
+    */
    memmove((void *)load_loc, load_buf + off, len);
    flush_cache(load_loc, len);
 
    close();
    if (bi.flags & DEBUG_BEFORE_BOOT) {
-      if (bi.flags & BOOT_NEW_WAY) {
-         printk("Booting new way.\n");
-      } else {
+      if (bi.flags & BOOT_OLD_WAY) {
          printk("Booting old QUIK way.\n");
+      } else {
+         printk("Booting new way.\n");
       }
 
       printk("Kernel: 0x%x @ 0x%x\n", image_len, load_loc);
@@ -647,10 +639,7 @@ int main(void *prom_entry, struct first_info *fip, unsigned long id)
    }
    printk("Starting at %x\n", start);
 
-   if (bi.flags & BOOT_NEW_WAY) {
-      set_bootargs(params);
-      (* (void (*)()) start)(initrd_base, initrd_len, prom_entry, 0, 0);
-   } else {
+   if (bi.flags & BOOT_OLD_WAY) {
 
       /*
        * 2.2 and 2.4 kernels can be called in this way, with params
@@ -659,6 +648,13 @@ int main(void *prom_entry, struct first_info *fip, unsigned long id)
        * info in r3 and r4.
        */
       (* (void (*)()) start)(params, 0, prom_entry, 0, 0);
+   } else {
+
+      /*
+       * 2.2 kernels can be booted like this as well.
+       */
+      set_bootargs(params);
+      (* (void (*)()) start)(initrd_base, initrd_len, prom_entry, 0, 0);
    }
    prom_exit();
 }
