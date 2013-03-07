@@ -33,6 +33,7 @@ SECTIONS
     *(.text)
     *(.rodata)
     *(.rodata1)
+    *(.rodata.*)
     *(.got1)
   }
   _etext = .;

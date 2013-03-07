@@ -28,9 +28,9 @@
  */
 
 #include "quik.h"
+#include <inttypes.h>
 #include <string.h>
-#define __KERNEL__
-#include <linux/elf.h>
+#include "elf.h"
 #include <layout.h>
 
 #define TMP_BUF         ((unsigned char *) 0x14000)
