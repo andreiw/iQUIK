@@ -2,7 +2,9 @@
  * Global procedures and variables for the quik second-stage bootstrap.
  */
 
-typedef unsigned int fs_len_t;
+#define ALIGN_UP(addr, align) (((addr) + (align) - 1) & (~((align) - 1)))
+#define ALIGN(addr, align) (((addr) - 1) & (~((align) - 1)))
+#define SIZE_1M 0x100000
 
 typedef enum {
   ERR_NONE,
@@ -33,6 +35,7 @@ typedef struct {
 #define DEBUG_BEFORE_BOOT     (1 << 4)
 #define TRIED_AUTO            (1 << 5)
 #define BOOT_PRE_2_4          (1 << 6)
+#define SHIM_OF               (1 << 7)
   unsigned flags;
 
   /* Config file path. E.g. /etc/quik.conf */

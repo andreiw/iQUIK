@@ -25,6 +25,7 @@
 #include <sys/types.h>
 #include <errno.h>
 #include "quik.h"
+#include "file.h"
 
 typedef unsigned __u32;
 typedef unsigned u32;

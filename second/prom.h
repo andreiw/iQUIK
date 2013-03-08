@@ -14,7 +14,7 @@ extern ihandle prom_chosen;
 extern ihandle prom_aliases;
 
 /* Prototypes */
-void prom_init(void (*pp)(void *));
+void prom_init(void (*pp)(void *), boot_info_t *bi);
 void prom_exit(void);
 void *call_prom(char *service, int nargs, int nret, ...);
 void prom_print(char *msg);
@@ -30,3 +30,18 @@ void *prom_claim_chunk(void *virt,
                        unsigned int size,
                        unsigned int align);
 void *prom_claim(void *virt, unsigned int size, unsigned int align);
+void set_bootargs(char *params);
+
+struct prom_args {
+   char *service;
+   int nargs;
+   int nret;
+   void *args[10];
+};
+
+typedef struct of_shim_state {
+  unsigned initrd_base;
+  unsigned initrd_len;
+} of_shim_state_t;
+
+void prom_shim(struct prom_args *args);

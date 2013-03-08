@@ -16,11 +16,12 @@
  */
 
 #include <stdarg.h>
+#include "quik.h"
 #include "prom.h"
 
 #define PROM_CLAIM_MAX_ADDR (0x10000000)
 
-#define getpromprop(node, name, buf, len)                            \
+#define prom_getprop(node, name, buf, len)                            \
    ((int)call_prom("getprop", 4, 1, (node), (name), (buf), (len)))
 
 ihandle prom_stdin;
@@ -32,15 +33,14 @@ ihandle prom_mmu;
 ihandle prom_memory;
 
 /* OF 1.0.5 claim bug. */
-#define PROM_CLAIM_WORK_AROUND (1 << 1)
+#define PROM_CLAIM_WORK_AROUND    (1 << 1)
+
+/* OF 2.0.1 setprop doesn't do deep copy = no initrd. */
+#define PROM_CLAIM_SETPROP_AROUND (1 << 2)
 static unsigned prom_flags = 0;
 
-struct prom_args {
-   char *service;
-   int nargs;
-   int nret;
-   void *args[10];
-} prom_args;
+static struct prom_args prom_args;
+of_shim_state_t of_shim_state;
 
 void (*prom_entry)(void *);
 
@@ -124,7 +124,50 @@ nbgetchar()
 }
 
 void
-prom_init(void (*pp)(void *))
+prom_shim(struct prom_args *args)
+{
+   if ((prom_flags & PROM_CLAIM_SETPROP_AROUND) == 0) {
+      goto out;
+   }
+
+   /*
+    * Linux kernels expect setprop to be deep, so
+    * the address passe can sometimes be on the stack,
+    * and initrd-start is one such affected variable,
+    * sadly enough.
+    *
+    * This should be fixed in the kernel, but before it is,
+    * older kernels still need to be able to boot.
+    */
+   if (strcmp(args->service, "getprop") == 0) {
+      ihandle ih = (ihandle) args->args[0];
+      char *name = (char *) args->args[1];
+      unsigned *place = (unsigned *) args->args[2];
+      unsigned *ret = (unsigned *) args->args[4];
+
+      if (ih != prom_chosen) {
+         goto out;
+      }
+
+      if (strcmp(name, "linux,initrd-start") == 0) {
+         *place = of_shim_state.initrd_base;
+      } else if (strcmp(name, "linux,initrd-end") == 0) {
+         *place = of_shim_state.initrd_base +
+            of_shim_state.initrd_len;
+      } else {
+         goto out;
+      }
+
+      *ret = 0;
+      return;
+   }
+
+out:
+   prom_entry(args);
+}
+
+void
+prom_init(void (*pp)(void *), boot_info_t *bi)
 {
    ihandle oprom;
    char ver[64];
@@ -138,17 +181,23 @@ prom_init(void (*pp)(void *))
    }
 
    prom_memory = call_prom("open", 1, 1, "/memory");
-   getpromprop(prom_chosen, "mmu", &prom_mmu, sizeof(prom_mmu));
+   prom_getprop(prom_chosen, "mmu", &prom_mmu, sizeof(prom_mmu));
    prom_aliases = call_prom("finddevice", 1, 1, "/aliases");
-   getpromprop(prom_chosen, "stdout", &prom_stdout, sizeof(prom_stdout));
-   getpromprop(prom_chosen, "stdin", &prom_stdin, sizeof(prom_stdin));
+   prom_getprop(prom_chosen, "stdout", &prom_stdout, sizeof(prom_stdout));
+   prom_getprop(prom_chosen, "stdin", &prom_stdin, sizeof(prom_stdin));
    prom_options = call_prom("finddevice", 1, 1, "/options");
 
    ver[0] = '\0';
    oprom = call_prom("finddevice", 1, 1, "/openprom");
-   getpromprop(oprom, "model", ver, sizeof(ver));
+   prom_getprop(oprom, "model", ver, sizeof(ver));
    if (strcmp(ver, "Open Firmware, 1.0.5") == 0) {
       prom_flags |= PROM_CLAIM_WORK_AROUND;
+   } else if (strcmp(ver, "Open Firmware, 2.0.1") == 0) {
+      prom_flags |= PROM_CLAIM_SETPROP_AROUND;
+   }
+
+   if (prom_flags & PROM_CLAIM_SETPROP_AROUND) {
+     bi->flags |= SHIM_OF;
    }
 }
 
@@ -156,7 +205,7 @@ void
 prom_get_chosen(char *name, char *buf, int buflen)
 {
    buf[0] = 0;
-   getpromprop(prom_chosen, name, buf, buflen);
+   prom_getprop(prom_chosen, name, buf, buflen);
 }
 
 void
@@ -164,7 +213,7 @@ prom_get_options(char *name, char *buf, int buflen)
 {
    buf[0] = 0;
    if (prom_options != (void *) -1)
-      getpromprop(prom_options, name, buf, buflen);
+      prom_getprop(prom_options, name, buf, buflen);
 }
 
 int
@@ -172,7 +221,7 @@ prom_get_alias(char *name, char *buf, int buflen)
 {
    buf[0] = 0;
    if (prom_aliases != (void *) -1) {
-      return getpromprop(prom_aliases, name, buf, buflen);
+      return prom_getprop(prom_aliases, name, buf, buflen);
    }
 
    return 0;
@@ -249,14 +298,15 @@ prom_claim_chunk(void *virt,
 {
   void *found, *addr;
 
-  for(addr = virt;
-      addr <= (void*) PROM_CLAIM_MAX_ADDR;
-      addr += (0x100000/sizeof(addr))) {
-
+  for (addr = (void *) ALIGN_UP((unsigned) virt, SIZE_1M);
+       addr <= (void*) PROM_CLAIM_MAX_ADDR;
+       addr = (void *) ((unsigned) addr + SIZE_1M)) {
      found = prom_claim(addr, size, 0);
      if (found != (void *)-1) {
         return found;
      }
+
+     printk("\ncouldn't claim at %p\n", addr);
   }
 
   return (void*) -1;

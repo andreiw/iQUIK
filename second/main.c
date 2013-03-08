@@ -33,12 +33,15 @@
 #include <string.h>
 #include "elf.h"
 #include "file.h"
+#include "prom.h"
 #include <layout.h>
 
-#define LOW_BASE        ((unsigned char *) 0x14000)
-#define LOW_END         ((unsigned char *) SECOND_BASE)
-#define HIGH_BASE       ((unsigned char *) 0x800000)
+#define LOW_BASE        ((void *) 0x14000)
+#define LOW_END         ((void *) SECOND_BASE)
+#define HIGH_BASE       ((void *) 0x800000)
 #define ADDRMASK        0x0fffffff
+
+of_shim_state_t of_shim_state;
 
 static boot_info_t bi;
 
@@ -335,6 +338,11 @@ int get_params(boot_info_t *bi,
       bi->flags |= DEBUG_BEFORE_BOOT;
       *kname = NULL;
       return 0;
+   } else if (!strcmp(*kname, "!shim")) {
+      bi->flags |= SHIM_OF;
+      printk("WILL SHIM\n");
+      *kname = NULL;
+      return 0;
    } else if (!strcmp(*kname, "!halt")) {
       prom_pause();
       *kname = NULL;
@@ -370,6 +378,7 @@ print_message_file(boot_info_t *bi, char *p)
 {
    char *q, *endp;
    int len = 0;
+   char *message;
    int n, defpart = bi->config_part;
    char *device, *kname;
    int part;
@@ -388,9 +397,10 @@ print_message_file(boot_info_t *bi, char *p)
          device = cfg_get_strg(0, "device");
       }
 
+      message = LOW_BASE;
       if (load_file(device, part, kname, LOW_BASE, LOW_END, &len, 1, 0)) {
-         LOW_BASE[len] = 0;
-         printk("\n%s", (char *)LOW_BASE);
+         message[len] = 0;
+         printk("\n%s", message);
       }
    }
 }
@@ -414,9 +424,11 @@ int main(void *prom_entry, struct first_info *fip, unsigned long id)
    int fileok = 0;
    Elf32_Ehdr *e;
    Elf32_Phdr *p;
-   char *load_buf, *load_buf_end;
+   char *load_buf;
+   char *load_buf_end;
    unsigned load_loc, entry, start, initrd_base;
    extern char __bss_start, _end;
+   quik_err_t err;
 
    /* Always first. */
    memset(&__bss_start, 0, &_end - &__bss_start);
@@ -436,9 +448,13 @@ int main(void *prom_entry, struct first_info *fip, unsigned long id)
       bi.config_part = fip->conf_part;
    }
 
-   prom_init(prom_entry);
+   prom_init(prom_entry, &bi);
    printk("\niQUIK OldWorld Bootloader\n");
    printk("Copyright (C) 2013 Andrei Warkentin <andrey.warkentin@gmail.com>\n");
+   if (bi.flags & SHIM_OF) {
+      printk("This firmware requires a shim to work around bugs.\n");
+   }
+
    get_bootargs(&bi);
 
    diskinit(&bi);
@@ -501,20 +517,22 @@ int main(void *prom_entry, struct first_info *fip, unsigned long id)
       }
 
       if ((image_len > (LOW_END - LOW_BASE)) &&
-          (bi.flags & BOOT_PRE_2_4) == 0) {
+          (bi.flags & BOOT_PRE_2_4)) {
          printk("Kernel '%s' too large to be loaded low and too old to be loaded high\n",
                 kname);
+         continue;
       }
 
       if (bi.flags & BOOT_PRE_2_4) {
          load_buf = LOW_BASE;
          load_buf_end = LOW_END;
       } else {
-         load_buf = prom_claim_chunk(HIGH_BASE, len, 0);
+         load_buf = prom_claim_chunk(HIGH_BASE, image_len, 0);
          if (load_buf == (char *) -1) {
             printk("Couldn't allocate memory to load kernel.\n");
             continue;
          }
+         printk("kernel is at %p\n", load_buf);
 
          load_buf_end = load_buf + image_len;
       }
@@ -584,13 +602,13 @@ int main(void *prom_entry, struct first_info *fip, unsigned long id)
          continue;
       }
 
-      if ((unsigned) load_buf > HIGH_BASE) {
+      if ((void *) load_buf >= HIGH_BASE) {
          initrd_base = (unsigned) load_buf_end;
       } else {
-         initrd_base = HIGH_BASE;
+         initrd_base = (unsigned) HIGH_BASE;
       }
 
-      initrd_base = prom_claim_chunk(initrd_base, initrd_len, 0);
+      initrd_base = (unsigned) prom_claim_chunk((void *) initrd_base, initrd_len, 0);
       if (initrd_base == (unsigned) -1) {
          printk("Claim failed\n");
          continue;
@@ -623,12 +641,18 @@ int main(void *prom_entry, struct first_info *fip, unsigned long id)
        * always load them high - they'll probably not fit in the low region
        * anyway.
        */
-      load_loc = load_buf + off;
+     load_loc = (unsigned) load_buf + off;
    }
 
    flush_cache(load_loc, len);
 
    close();
+
+   if (bi.flags & SHIM_OF) {
+      of_shim_state.initrd_base = initrd_base;
+      of_shim_state.initrd_len = initrd_len;
+   }
+
    if (bi.flags & DEBUG_BEFORE_BOOT) {
       if (bi.flags & BOOT_PRE_2_4) {
          printk("Booting pre-2.4 kernel\n");
@@ -670,7 +694,11 @@ int main(void *prom_entry, struct first_info *fip, unsigned long id)
 
    printk("Starting at %x\n", start);
    set_bootargs(params);
-   (* (void (*)()) start)(initrd_base, initrd_len, prom_entry, 0, 0);
+   (* (void (*)()) start)(initrd_base, initrd_len,
+                          (bi.flags & SHIM_OF) ?
+                          prom_shim :
+                          prom_entry,
+                          0, 0);
 
    prom_exit();
 }

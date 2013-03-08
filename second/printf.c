@@ -21,7 +21,7 @@
 #include <stdarg.h>
 #include "quik.h"
 
-static char *errors = {
+static char *errors[] = {
   "ERR_NONE",
   "ERR_DEV_OPEN",
   "ERR_FS_OPEN",
