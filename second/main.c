@@ -449,7 +449,7 @@ int main(void *prom_entry, struct first_info *fip, unsigned long id)
    }
 
    prom_init(prom_entry, &bi);
-   printk("\niQUIK OldWorld Bootloader\n");
+   printk("iQUIK OldWorld Bootloader\n");
    printk("Copyright (C) 2013 Andrei Warkentin <andrey.warkentin@gmail.com>\n");
    if (bi.flags & SHIM_OF) {
       printk("This firmware requires a shim to work around bugs.\n");

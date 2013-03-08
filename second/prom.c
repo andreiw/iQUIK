@@ -36,11 +36,15 @@ ihandle prom_memory;
 #define PROM_CLAIM_WORK_AROUND    (1 << 1)
 
 /* OF 2.0.1 setprop doesn't do deep copy = no initrd. */
-#define PROM_CLAIM_SETPROP_AROUND (1 << 2)
+#define PROM_NEED_SHIM            (1 << 2)
+#define PROM_CLAIM_SETPROP_AROUND (1 << 3)
+#define PROM_HIDE_MEDIABAY_ATA    (1 << 4)
 static unsigned prom_flags = 0;
 
 static struct prom_args prom_args;
 of_shim_state_t of_shim_state;
+
+ihandle prom_mediabay_ata;
 
 void (*prom_entry)(void *);
 
@@ -126,41 +130,62 @@ nbgetchar()
 void
 prom_shim(struct prom_args *args)
 {
-   if ((prom_flags & PROM_CLAIM_SETPROP_AROUND) == 0) {
-      goto out;
-   }
 
    /*
     * Linux kernels expect setprop to be deep, so
-    * the address passe can sometimes be on the stack,
+    * the address passed can sometimes be on the stack,
     * and initrd-start is one such affected variable,
     * sadly enough.
     *
     * This should be fixed in the kernel, but before it is,
     * older kernels still need to be able to boot.
     */
-   if (strcmp(args->service, "getprop") == 0) {
-      ihandle ih = (ihandle) args->args[0];
-      char *name = (char *) args->args[1];
-      unsigned *place = (unsigned *) args->args[2];
-      unsigned *ret = (unsigned *) args->args[4];
+   if (prom_flags & PROM_CLAIM_SETPROP_AROUND) {
+      if (strcmp(args->service, "getprop") == 0) {
+         ihandle ih = (ihandle) args->args[0];
+         char *name = (char *) args->args[1];
+         unsigned *place = (unsigned *) args->args[2];
+         unsigned *ret = (unsigned *) args->args[4];
 
-      if (ih != prom_chosen) {
-         goto out;
+         if (ih != prom_chosen) {
+            goto out;
+         }
+
+         if (strcmp(name, "linux,initrd-start") == 0) {
+            *place = of_shim_state.initrd_base;
+         } else if (strcmp(name, "linux,initrd-end") == 0) {
+            *place = of_shim_state.initrd_base +
+               of_shim_state.initrd_len;
+         } else {
+            goto out;
+         }
+
+         *ret = 0;
+         return;
       }
-
-      if (strcmp(name, "linux,initrd-start") == 0) {
-         *place = of_shim_state.initrd_base;
-      } else if (strcmp(name, "linux,initrd-end") == 0) {
-         *place = of_shim_state.initrd_base +
-            of_shim_state.initrd_len;
-      } else {
-         goto out;
-      }
-
-      *ret = 0;
-      return;
    }
+
+   if (prom_flags & PROM_HIDE_MEDIABAY_ATA) {
+      if (strcmp(args->service, "child") == 0 ||
+          strcmp(args->service, "peer") == 0 ||
+          strcmp(args->service, "parent") == 0) {
+
+         prom_entry(args);
+         if (args->args[args->nargs] == prom_mediabay_ata) {
+            printk("hiding mediabay ATA\n");
+            args->args[args->nargs] = 0;
+         }
+
+         return;
+      }
+   }
+
+#if 0
+   if (strcmp(args->service, "quiesce") == 0) {
+      printk("'go' to continue kernel boot\n");
+      prom_pause();
+   }
+#endif
 
 out:
    prom_entry(args);
@@ -186,6 +211,7 @@ prom_init(void (*pp)(void *), boot_info_t *bi)
    prom_getprop(prom_chosen, "stdout", &prom_stdout, sizeof(prom_stdout));
    prom_getprop(prom_chosen, "stdin", &prom_stdin, sizeof(prom_stdin));
    prom_options = call_prom("finddevice", 1, 1, "/options");
+   printk("\n");
 
    ver[0] = '\0';
    oprom = call_prom("finddevice", 1, 1, "/openprom");
@@ -193,11 +219,15 @@ prom_init(void (*pp)(void *), boot_info_t *bi)
    if (strcmp(ver, "Open Firmware, 1.0.5") == 0) {
       prom_flags |= PROM_CLAIM_WORK_AROUND;
    } else if (strcmp(ver, "Open Firmware, 2.0.1") == 0) {
+      prom_flags |= PROM_NEED_SHIM;
       prom_flags |= PROM_CLAIM_SETPROP_AROUND;
+      prom_flags |= PROM_HIDE_MEDIABAY_ATA;
+      prom_mediabay_ata = call_prom("finddevice", 1, 1, "/bandit/ohare/media-bay/ata");
+      printk("prom_mediabay_ata @ 0x%x\n", prom_mediabay_ata);
    }
 
-   if (prom_flags & PROM_CLAIM_SETPROP_AROUND) {
-     bi->flags |= SHIM_OF;
+   if (prom_flags & PROM_NEED_SHIM) {
+      bi->flags |= SHIM_OF;
    }
 }
 
