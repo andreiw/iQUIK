@@ -21,14 +21,11 @@
 #include <stdarg.h>
 #include "quik.h"
 
+#define QUIK_ERR_DEF(e, s) s,
 static char *errors[] = {
-  "ERR_NONE",
-  "ERR_DEV_OPEN",
-  "ERR_FS_OPEN",
-  "ERR_FS_NOT_FOUND",
-  "ERR_FS_EXT2FS",
-  "<Unknown>"
+   QUIK_ERR_LIST
 };
+#undef QUIK_ERR_DEF
 
 /*
  * Print a string.
@@ -47,10 +44,10 @@ static void printks(char *s)
  */
 static void printkr(quik_err_t err)
 {
-   if (err < ERR_LAST) {
+   if (err < ERR_INVALID) {
       printks(errors[err]);
    } else {
-      printks(errors[ERR_LAST]);
+      printks(errors[ERR_INVALID]);
    }
 }
 

@@ -48,5 +48,3 @@ typedef struct of_shim_state {
   /* For PROM_HIDE_MEDIABAY_ATA. */
   ihandle mediabay_ata;
 } of_shim_state_t;
-
-void prom_shim(struct prom_args *args);

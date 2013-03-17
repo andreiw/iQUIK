@@ -29,9 +29,7 @@
  */
 
 #include "quik.h"
-#include <inttypes.h>
 #include <string.h>
-#include "elf.h"
 #include "file.h"
 #include "prom.h"
 #include <layout.h>
@@ -39,7 +37,6 @@
 #define LOW_BASE        ((void *) 0x14000)
 #define LOW_END         ((void *) SECOND_BASE)
 #define HIGH_BASE       ((void *) 0x800000)
-#define ADDRMASK        0x0fffffff
 
 of_shim_state_t of_shim_state;
 
@@ -416,17 +413,16 @@ int get_bootargs(boot_info_t *bi)
 /* Here we are launched */
 int main(void *prom_entry, struct first_info *fip, unsigned long id)
 {
-   unsigned off;
-   int i, len;
+   int len;
    fs_len_t image_len, initrd_len;
    char *kname, *initrd, *params, *device;
+   load_state_t image;
    unsigned part;
    int fileok = 0;
-   Elf32_Ehdr *e;
-   Elf32_Phdr *p;
+
    char *load_buf;
    char *load_buf_end;
-   unsigned load_loc, entry, start, initrd_base;
+   unsigned initrd_base;
    extern char __bss_start, _end;
    quik_err_t err;
 
@@ -546,46 +542,10 @@ int main(void *prom_entry, struct first_info *fip, unsigned long id)
          continue;
       }
 
-
-      /* By this point the first sector is loaded (and the rest of */
-      /* the kernel) so we check if it is an executable elf binary. */
-
-      e = (Elf32_Ehdr *) load_buf;
-      if (!(e->e_ident[EI_MAG0] == ELFMAG0 &&
-            e->e_ident[EI_MAG1] == ELFMAG1 &&
-            e->e_ident[EI_MAG2] == ELFMAG2 &&
-            e->e_ident[EI_MAG3] == ELFMAG3)) {
-         printk("\n%s: unknown image format\n", kname);
+      err = elf_parse(load_buf, image_len, &image);
+      if (err != ERR_NONE) {
+         printk("Error parsing '%s': %r\n", kname, err);
          continue;
-      }
-
-      if (e->e_ident[EI_CLASS] != ELFCLASS32
-          || e->e_ident[EI_DATA] != ELFDATA2MSB) {
-         printk("Image is not a 32bit MSB ELF image\n");
-         continue;
-      }
-
-      len = 0;
-      p = (Elf32_Phdr *) (load_buf + e->e_phoff);
-      for (i = 0; i < e->e_phnum; ++i, ++p) {
-         if (p->p_type != PT_LOAD || p->p_offset == 0)
-            continue;
-         if (len == 0) {
-            off = p->p_offset;
-            len = p->p_filesz;
-            load_loc = p->p_vaddr & ADDRMASK;
-         } else
-            len = p->p_offset + p->p_filesz - off;
-      }
-
-      if (len == 0) {
-         printk("Cannot find a loadable segment in ELF image\n");
-         continue;
-      }
-
-      entry = e->e_entry & ADDRMASK;
-      if (len + off > image_len) {
-         len = image_len - off;
       }
 
       if (!initrd) {
@@ -623,32 +583,22 @@ int main(void *prom_entry, struct first_info *fip, unsigned long id)
          continue;
       }
 
+      err = elf_relo(&bi, &image);
+      if (err != ERR_NONE) {
+         printk("Error parsing '%s': %r\n", kname, err);
+         continue;
+      }
+
       break;
    }
-
-   if (bi.flags & BOOT_PRE_2_4) {
-
-      /*
-       * 2.2 kernels have to execute at PA = 0x0 on the PowerMac.
-       *
-       * After this memmove, *p and *e may have been overwritten.
-       */
-      memmove((void *)load_loc, load_buf + off, len);
-   } else {
-
-      /*
-       * Newer kernels can relocate themselves just fine, so we
-       * always load them high - they'll probably not fit in the low region
-       * anyway.
-       */
-     load_loc = (unsigned) load_buf + off;
-   }
-
-   flush_cache(load_loc, len);
 
    close();
 
    if (bi.flags & SHIM_OF) {
+
+      /*
+       * AndreiW: This stuff should be tucked in into prom.c.
+       */
       of_shim_state.initrd_base = initrd_base;
       of_shim_state.initrd_len = initrd_len;
    }
@@ -658,9 +608,10 @@ int main(void *prom_entry, struct first_info *fip, unsigned long id)
          printk("Booting pre-2.4 kernel\n");
       }
 
-      printk("Kernel: 0x%x @ 0x%x\n", image_len, load_loc);
+      printk("Kernel: 0x%x @ 0x%x\n", image.text_len, image.linked_base);
       printk("Initrd: 0x%x @ 0x%x\n", initrd_len, initrd_base);
       printk("Kernel parameters: %s\n", params);
+      printk("Entry = 0x%x\n", image.entry);
       printk(pause_message);
       prom_pause();
       printk("\n");
@@ -670,35 +621,8 @@ int main(void *prom_entry, struct first_info *fip, unsigned long id)
       printk("\n");
    }
 
-   /*
-    * For the sake of the Open Firmware XCOFF loader, the entry
-    * point may actually be a procedure descriptor.
-    */
-   start = *(unsigned *) entry;
-
-   /* new boot strategy - see head.S in the kernel for more info -- Cort */
-   if (start == 0x60000000) {
-      /* nop */
-
-      start = load_loc;
-   } else {
-      /* not the new boot strategy, use old logic -- Cort */
-
-      if (start < load_loc || start >= load_loc + len
-          || ((unsigned *)entry)[2] != 0) {
-
-         /* doesn't look like a procedure descriptor */
-         start += entry;
-      }
-   }
-
-   printk("Starting at %x\n", start);
-   set_bootargs(params);
-   (* (void (*)()) start)(initrd_base, initrd_len,
-                          (bi.flags & SHIM_OF) ?
-                          prom_shim :
-                          prom_entry,
-                          0, 0);
-
+   err = elf_boot(&bi, &image, initrd_base,
+                  initrd_len, params);
+   printk("Booted kernel returned: %r", err);
    prom_exit();
 }

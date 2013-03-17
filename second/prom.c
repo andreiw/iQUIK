@@ -129,7 +129,7 @@ nbgetchar()
    return (int) call_prom("read", 3, 1, prom_stdin, &ch, 1) > 0? ch: -1;
 }
 
-void
+static void
 prom_shim(struct prom_args *args)
 {
 
@@ -200,10 +200,12 @@ prom_init(void (*pp)(void *), boot_info_t *bi)
    char ver[64];
 
    prom_entry = pp;
+   bi->prom_entry  = (vaddr_t) pp;
+   bi->prom_shim = (vaddr_t) prom_shim;
 
    /* First get a handle for the stdout device */
    prom_chosen = call_prom("finddevice", 1, 1, "/chosen");
-   if (prom_chosen == (void *) -1){
+   if (prom_chosen == (void *) -1) {
       prom_exit();
    }
 

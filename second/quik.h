@@ -1,30 +1,70 @@
 /*
  * Global procedures and variables for the quik second-stage bootstrap.
+ *
+ * Copyright (C) 2013 Andrei Warkentin <andrey.warkentin@gmail.com>
+ * Copyright (C) 1996 Paul Mackerras.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
+
+#include <inttypes.h>
 
 #define ALIGN_UP(addr, align) (((addr) + (align) - 1) & (~((align) - 1)))
 #define ALIGN(addr, align) (((addr) - 1) & (~((align) - 1)))
 #define SIZE_1M 0x100000
 
+typedef uint32_t vaddr_t;
+typedef unsigned offset_t;
+typedef unsigned length_t;
+
+/*
+ * Loaded kernels described by this code.
+ */
+typedef struct {
+  vaddr_t buf;
+  vaddr_t  linked_base;
+  offset_t text_offset;
+  length_t text_len;
+  vaddr_t  entry;
+} load_state_t;
+
+#define QUIK_ERR_LIST \
+   QUIK_ERR_DEF(ERR_NONE, "no error")                                  \
+   QUIK_ERR_DEF(ERR_DEV_OPEN, "cannot open device")                    \
+   QUIK_ERR_DEF(ERR_FS_OPEN, "cannot open volume as file system")      \
+   QUIK_ERR_DEF(ERR_FS_NOT_FOUND, "file not found")                    \
+   QUIK_ERR_DEF(ERR_FS_EXT2FS, "internal ext2fs error")                \
+   QUIK_ERR_DEF(ERR_ELF_NOT, "invalid kernel image")                   \
+   QUIK_ERR_DEF(ERR_ELF_WRONG, "invalid kernel architecture")          \
+   QUIK_ERR_DEF(ERR_ELF_NOT_LOADABLE, "not a loadable image")          \
+   QUIK_ERR_DEF(ERR_KERNEL_RETURNED, "kernel returned")                \
+   QUIK_ERR_DEF(ERR_INVALID, "invalid error, likely a bug")            \
+
+#define QUIK_ERR_DEF(e, s) e,
 typedef enum {
-  ERR_NONE,
-
-  /* Cannot open device. */
-  ERR_DEV_OPEN,
-
-  /* Cannot open volume as file system. */
-  ERR_FS_OPEN,
-
-  /* File not found. */
-  ERR_FS_NOT_FOUND,
-
-  /* Internal ext2fs error. */
-  ERR_FS_EXT2FS,
-
-  ERR_LAST
+  QUIK_ERR_LIST
 } quik_err_t;
+#undef QUIK_ERR_DEF
 
 typedef struct {
+
+  /* Real OF entry. */
+  vaddr_t prom_entry;
+
+  /* Our shim, if any. */
+  vaddr_t prom_shim;
 
   /* Boot device path. */
   char *device;
