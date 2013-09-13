@@ -10,6 +10,9 @@
 /* type field value for A/UX or other Unix partitions */
 #define APPLE_AUX_TYPE	"Apple_UNIX_SVR2"
 
+/* type field for bootstrap partition */
+#define APPLE_BOOT_TYPE "Apple_Bootstrap"
+
 struct mac_partition {
     uint16_t	signature;	/* expected to be MAC_PARTITION_MAGIC */
     uint16_t	res1;

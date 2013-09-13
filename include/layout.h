@@ -3,6 +3,7 @@
  * go in memory and the structures they use to communicate.
  *
  * Copyright (C) 1996 Paul Mackerras
+ * Copyright (C) 2013 Andrei Warkentin <andrey.warkentin@gmail.com.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -10,7 +11,7 @@
  * (at your option) any later version.
  */
 
-#define VERSION		"2.0"
+#define VERSION		"3.0"
 
 #define FIRST_BASE	0x3f4000
 #define FIRST_SIZE	0x400

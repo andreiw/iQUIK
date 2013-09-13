@@ -24,29 +24,21 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-/* This program generates a lists of blocks where the secondary loader lives */
 #include <ctype.h>
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <unistd.h>
 
-typedef unsigned u32;
-typedef unsigned char u8;
-#include <linux/fs.h>
-#include <linux/ext2_fs.h>
 #include <sys/stat.h>
-#include <endian.h>
 #include <fcntl.h>
 #include <dirent.h>
 #include <asm/mac-part.h>
 #include <layout.h>
 
 #define DFL_CONFIG      "/etc/quik.conf"
-#define ALT_CONFIG      "/etc/milo.conf"
-#define DFL_BACKUP      "/boot/old.b"
-#define DFL_PRIMARY     "/boot/first.b"
 #define DFL_SECONDARY   "/boot/second.b"
 
 #define SD_MAJOR        8       /* Major device no. for scsi disks */
@@ -57,26 +49,21 @@ typedef unsigned char u8;
 
 #ifndef MAJOR
 #define MAJOR(dev)      ((dev) >> 8)
-#define MINOR(dev)      ((dev) & 0xff)
 #endif
 
-int unit_shift;
-int part_mask;
-#define UNIT(dev)       (((int)MINOR(dev)) >> unit_shift)
-#define PART(dev)       (((int)MINOR(dev)) &  part_mask)
+static int verbose = 0;
+static int test_mode = 0;
 
-#define swab_32(x)      ((((x) >> 24) & 0xff) + (((x) >> 8) & 0xff00)   \
-                         + (((x) & 0xff00) << 8) + (((x) & 0xff) << 24))
-#define swab_16(x)      ((((x) >> 8) & 0xff) + (((x) & 0xff) << 8))
 
-unsigned nsect;                 /* # (512-byte) sectors per f.s. block */
-unsigned bs;                    /* f.s. block size */
-int secsize;                    /* disk sector size */
-int first_bootable;             /* part map entry # of 1st bootable part */
-unsigned long doff;             /* start of partition containing 2nd boot */
-char *first, *second, *old;     /* File names */
-struct first_info finfo;
-int verbose;
+ssize_t do_write(int fd, const void *buf, size_t count)
+{
+   if (test_mode) {
+      printf("<skipping write due to test mode>\n");
+      return count;
+   }
+
+   return write(fd, buf, count);
+}
 
 void fatal(char *fmt,...)
 {
@@ -89,89 +76,38 @@ void fatal(char *fmt,...)
    exit(1);
 }
 
-int check_fs(int fd)
+
+void read_sb(char *device,         /* IN */
+             unsigned *part_index, /* OUT - # of boot partition entry  */
+             off_t *doff,          /* OUT - block start for boot partition */
+             ssize_t *secsize)     /* OUT - sector size. */
 {
-   struct ext2_super_block sb; /* Super Block Info */
-
-   if (lseek(fd, 1024, 0) != 1024
-       || read(fd, &sb, sizeof(sb)) != sizeof (sb)) {
-      fatal("Cannot read superblock");
-   }
-
-   if (sb.s_magic == EXT2_SUPER_MAGIC) {
-      return 1024 << sb.s_log_block_size;
-   }
-
-   if (swab_16(sb.s_magic) == EXT2_SUPER_MAGIC) {
-      return 1024 << swab_32(sb.s_log_block_size);
-   }
-
-   return -1;
-}
-
-void read_sb(char *device,    /* IN */
-             char *bootdev  , /* IN */
-             int floppy,      /* IN */
-             int *part_index) /* OUT - blk# of partition map entry */
-{
-   int fd, partno, part;
-   int offset, upart, maxpart;
+   int fd, part;
+   int offset, maxpart;
    struct mac_partition *mp;
    struct mac_driver_desc *md;
    char *p;
    char buff[512];
 
-   if (!floppy) {
-      if ((fd = open(device, O_RDONLY)) == -1) {
-         fatal("Cannot open %s", device);
-      }
-
-      bs = check_fs(fd);
-
-      if (bs == -1) {
-         fatal("Filesystems other than ext2 are not supported");
-      }
-
-      close(fd);
-   }
-
-   if (floppy) {
-
-      /* First (and only) floppy on the disk. */
-      partno = 2;
-      bootdev = "/dev/fd0";
-   } else {
-      p = device + strlen(device);
-      while (p > device && isdigit(p[-1])) {
-         --p;
-      }
-
-      partno = atoi(p);
-      if (partno == 0) {
-         fatal("Can't determine partition number for %s", device);
-      }
-   }
-
-   upart = 0;
    mp = (struct mac_partition *) buff;
    md = (struct mac_driver_desc *) buff;
-   if ((fd = open(bootdev, O_RDONLY)) == -1) {
-      fatal("Can't open %s", bootdev);
+   if ((fd = open(device, O_RDONLY)) == -1) {
+      fatal("Can't open '%s'", device);
    }
    if (read(fd, buff, sizeof (buff)) != sizeof (buff)) {
-      fatal("Error reading %s (block 0)", bootdev);
+      fatal("Error reading '%s' (block 0)", device);
    }
    if (md->signature != MAC_DRIVER_MAGIC) {
-      fatal("%s is not a mac-formatted disk", bootdev);
+      fatal("'%s' is not a mac-formatted disk", device);
    }
 
-   secsize = md->block_size;
+   *secsize = md->block_size;
    maxpart = 1;
-   doff = 0;
+   *doff = 0;
    for (part = 1; part <= maxpart; ++part) {
-      lseek(fd, part * secsize, 0);
+      lseek(fd, part * *secsize, 0);
       if (read(fd, buff, sizeof (buff)) != sizeof (buff)) {
-         fatal("Error reading partition map from %s", bootdev);
+         fatal("Error reading partition map from '%s'", device);
       }
 
       if (mp->signature != MAC_PARTITION_MAGIC) {
@@ -186,30 +122,24 @@ void read_sb(char *device,    /* IN */
          break;
       }
 
-      if (first_bootable == 0 && (mp->status & STATUS_BOOTABLE) != 0
-          && strcasecmp(mp->processor, "PowerPC") == 0) {
-         first_bootable = part;
-      }
-
-      if (++upart == partno) {
+      if (!strcmp(mp->type, APPLE_BOOT_TYPE)) {
 
          /* This is the one we want */
          *part_index = part;
-         doff = mp->start_block * (secsize >> 9);
-         break;
+         *doff = mp->start_block * (*secsize >> 9);
+         return;
       }
    }
 
-   if (upart < partno) {
-      fatal("Couldn't locate partition %d on %s", partno, bootdev);
-   }
+   fatal("No Apple_Bootstrap partition found on '%s'", device);
 }
 
+
 void make_bootable(char *device,
-                   char *spart,
-                   int part_index,
-                   off_t stage_size,
-                   __u32 load_base)
+                   ssize_t secsize,
+                   unsigned part_index,
+                   ssize_t stage_size,
+                   uint32_t load_base)
 {
    int fd;
    struct mac_partition *mp;
@@ -224,21 +154,16 @@ void make_bootable(char *device,
    }
 
    if (verbose) {
-      printf("Making %s bootable (map entry %d)\n", spart, part_index);
-   }
-
-   if (first_bootable > 0 && first_bootable < part_index) {
-      fprintf(stderr, "Warning: prior partition (entry %d) is bootable\n",
-              first_bootable);
+      printf("Making '%s' bootable (map entry %d)\n", device, part_index);
    }
 
    if ((fd = open(device, O_RDWR)) < 0) {
-      fatal("Cannot open %s for writing\n", device);
+      fatal("Cannot open '%s' for writing", device);
    }
 
    lseek(fd, part_index * secsize, 0);
    if (read(fd, buff, sizeof(buff)) != sizeof(buff)) {
-      fatal("Error reading partition map entry %d from %s\n", part_index,
+      fatal("Error reading partition map entry %d from '%s'", part_index,
             device);
    }
 
@@ -251,46 +176,19 @@ void make_bootable(char *device,
    mp->boot_entry = load_base;
    mp->boot_entry2 = 0;
    strncpy(mp->processor, "PowerPC", sizeof(mp->processor));
-   if (lseek(fd, part_index * secsize, 0) < 0
-       || write(fd, buff, sizeof(buff)) != sizeof(buff)) {
-      fatal("Couldn't make %s%d bootable: write error\n", device,
+   if (lseek(fd, part_index * secsize, 0) < 0) {
+      fatal("Couldn't make '%s'%d bootable: seek error", device,
+            part_index);
+   }
+
+   if (do_write(fd, buff, sizeof(buff)) != sizeof(buff)) {
+      fatal("Couldn't make '%s'%d bootable: write error", device,
             part_index);
    }
 }
 
-int get_partition_blocks(char *filename)
-{
-   int fd;
-   int block, i, k;
-   struct stat st;
 
-   if ((fd = open(filename, O_RDONLY)) == -1) {
-      fatal("Cannot find %s", filename);
-   }
-
-   if (fstat(fd, &st) < 0) {
-      fatal("Couldn't stat %s", filename);
-   }
-
-   finfo.blocksize = bs;
-   nsect = bs >> 9;
-   for (i = 0;; i++) {
-      block = i;
-      if (i * bs >= st.st_size || ioctl(fd, FIBMAP, &block) < 0 || !block) {
-         break;
-      }
-
-      finfo.blknos[i] = block * nsect + doff;
-   }
-
-   finfo.nblocks = i;
-   close(fd);
-   return 0;
-}
-
-char *new_root = NULL;
-
-char *chrootcpy(char *path)
+char *chrootcpy(char *new_root, char *path)
 {
    if (new_root && *new_root) {
       char *buffer = malloc(strlen(new_root) + strlen(path) + 1);
@@ -307,110 +205,27 @@ char *chrootcpy(char *path)
    }
 }
 
-void write_block_table(char *device, char *config_file, int partno)
-{
-   int fd;
-
-   if (verbose) {
-      printf("Writing block table to boot block on %s\n", device);
-   }
-
-   strncpy(finfo.quik_vers, "QUIK" VERSION, sizeof(finfo.quik_vers));
-   finfo.second_base = SECOND_BASE;
-   finfo.conf_part = partno;
-   strncpy(finfo.conf_file, config_file, sizeof(finfo.conf_file));
-   if ((fd = open(device, O_RDWR)) == -1) {
-      fatal("Cannot open %s", device);
-   }
-
-   if (lseek(fd, FIRST_INFO_OFF, SEEK_SET) != FIRST_INFO_OFF) {
-      fatal("Seek error on %s", device);
-   }
-
-   if (write(fd, &finfo, sizeof(finfo)) != sizeof(finfo)) {
-      fatal("Couldn't update boot block on %s", device);
-   }
-
-   close(fd);
-}
 
 void usage(char *s)
 {
-   printf("QUIK " VERSION " Disk bootstrap installer for Powermac/Linux\n"
-          "Usage: %s [options]\n"
+   printf("iQUIK " VERSION " Disk bootstrap installer for PowerMac/Linux\n"
+          "Copyright (C) 2013 Andrei Warkentin <andrey.warkentin@gmail.com>\n"
+          "Usage: '%s' [options]\n"
           "Options:\n"
           " -r root_path chroots into root_path (all paths relative to this)\n"
-          " -b secondary use secondary as second stage boot instead of /boot/second.b\n"
-          " -i primary   install primary as first stage boot, instead of /boot/first.b\n"
-          " -C config    specify alternate config file instead of /etc/quik.conf\n"
-          "              (the config file has to reside on the same physical disk as\n"
-          "              the second stage loader, but can be in a different partition)\n"
-          " -s backup    save your old bootblock only if backup doesn't exist yet\n"
-          " -S backup    force saving your old bootblock into backup\n"
-          " -f           force overwriting of bootblock, even if quik already installed\n"
-          " -F           install first stage to floppy"
+          " -b secondary use secondary as boot code instead of /boot/second.b\n"
+          " -d           install boot code to alternate device (e.g. /dev/fd0)\n"
           " -v           verbose mode\n"
+          " -T           test mode (no actual writes)\n"
           " -V           show version\n" ,s);
-   exit (1);
+   exit(1);
 }
 
-int examine_bootblock(char *device, char *filename, int do_backup, int device_is_part)
-{
-   union {
-      char buffer[1024];
-      int first_word;
-      struct {
-         char pad[FIRST_INFO_OFF];
-         struct first_info fi;
-      } fi;
-   } u;
-   int fd, rc;
-   FILE *fp;
-   off_t off;
-   int ret = 0;
 
-   if ((fd = open(device, O_RDONLY)) == -1) {
-      fatal("Cannot open %s", device);
-   }
-
-   if (device_is_part) {
-      off = doff * 512;
-   } else {
-      off = 0;
-   }
-
-   if (lseek(fd, off, 0) != off) {
-      fatal("Couldn't seek to partition start");
-   }
-
-   if (read (fd, &u, sizeof(u)) != sizeof(u)) {
-      fatal("Couldn't read old bootblock");
-   }
-
-   close(fd);
-   if (u.first_word != 0
-       && memcmp(u.fi.fi.quik_vers, "QUIK" VERSION, 7) == 0
-       && u.fi.fi.quik_vers[6] >= '0' && u.fi.fi.quik_vers[6] <= '9') {
-      if (verbose) {
-         printf("%s already has QUIK boot block installed\n", device);
-         ret = 1;
-      }
-   }
-
-   if (do_backup) {
-      if (verbose)
-         printf("Copying old bootblock from %s to %s\n", device, filename);
-      if ((fp = fopen(filename, "w")) == NULL)
-         fatal("Cannot create %s", filename);
-      if (rc = fwrite(&u, 1, sizeof(u), fp) != sizeof(u))
-         fatal("Couldn't write old bootblock to %s", filename);
-      fclose (fp);
-   }
-
-   return ret;
-}
-
-void install_stage(char *device, char *filename, off_t *stage_size, int device_is_part)
+void install_stage(char *device,
+                   char *filename,
+                   ssize_t *stage_size,
+                   off_t doff)
 {
    char *buff;
    int rc;
@@ -420,50 +235,50 @@ void install_stage(char *device, char *filename, off_t *stage_size, int device_i
    struct stat st;
 
    if (verbose) {
-      printf("Writing first-stage QUIK boot block to %s\n", device);
+      printf("Writing first-stage QUIK boot block to '%s'\n", device);
    }
 
    if ((fd = open(device, O_WRONLY)) == -1) {
-      fatal("Couldn't open device %s for writing", device);
+      fatal("Couldn't open device '%s' for writing", device);
    }
 
    if ((fp = fopen(filename, "r")) == NULL) {
-      fatal("Couldn't open primary boot file %s", filename);
+      fatal("Couldn't open primary boot file '%s'", filename);
    }
 
    if (stat(filename, &st) < 0) {
-      fatal("Couldn't stat %s\n", filename);
+      fatal("Couldn't stat '%s'", filename);
    }
    *stage_size = st.st_size;
 
    buff = malloc(*stage_size);
    if (buff == NULL) {
-      fatal("Couldn't alloc %u to read %s\n", *stage_size, filename);
+      fatal("Couldn't alloc %u to read '%s'", *stage_size, filename);
    }
 
    rc = fread(buff, 1, *stage_size, fp);
    if (rc <= 0) {
-      fatal("Couldn't read new quik bootblock from %s", filename);
+      fatal("Couldn't read iQUIK boot code from '%s'", filename);
    }
 
-   if (device_is_part) {
-      off = doff * 512;
-   } else {
-      off = 0;
+   off = doff * 512;
+   if (verbose) {
+      printf("Installing to offset %zu on '%s'\n", off, device);
    }
 
    if (lseek(fd, off, 0) != off) {
-      fatal("Couldn't seek on %s", device);
+      fatal("Couldn't seek on '%s'", device);
    }
 
-   if (write(fd, buff, rc) != rc) {
-      fatal("Couldn't write quik bootblock to %s", device);
+   if (do_write(fd, buff, rc) != rc) {
+      fatal("Couldn't write iQUIK boot code to '%s'", device);
    }
 
    free(buff);
    close(fd);
    fclose(fp);
 }
+
 
 char *find_dev(int number)
 {
@@ -498,6 +313,7 @@ char *find_dev(int number)
    return NULL;
 }
 
+
 char *
 resolve_to_dev(char *buffer, dev_t dev)
 {
@@ -520,7 +336,7 @@ resolve_to_dev(char *buffer, dev_t dev)
 
       fn = *buffer ? buffer : "/";
       if (lstat(fn, &st3) < 0) {
-         fatal("Couldn't stat %s\n", fn);
+         fatal("Couldn't stat '%s'", fn);
       }
 
       if (st3.st_dev == dev) {
@@ -531,7 +347,7 @@ resolve_to_dev(char *buffer, dev_t dev)
       if (S_ISLNK(st3.st_mode)) {
          len = readlink(buffer, readlinkbuf, 2048);
          if (len < 0) {
-            fatal ("Couldn't readlink %s\n", fn);
+            fatal("Couldn't readlink '%s'", fn);
          }
 
          readlinkbuf[len] = 0;
@@ -560,38 +376,27 @@ resolve_to_dev(char *buffer, dev_t dev)
          *q = c;
          p = q + 1;
          if (!c) {
-            fatal("Internal error\n");
+            fatal("Internal error");
          }
       }
    }
 }
 
+
 int main(int argc,char **argv)
 {
-   char *name = NULL;
-   char *install = NULL;
-   char *first_dev_override = NULL;
-   char *secondary;
-   char *backup;
-   char *config_file;
+   char *new_root = NULL;
+   char *basedev = NULL;
+   char *secondary = DFL_SECONDARY;
    int c;
-   int version = 0;
-   struct stat st1, st2;
    int fd;
-   int force_backup = 0;
-   int config_file_partno = 1;
-   int part_index = 0;
-   int part_start_block;
-   char *p, *basedev;
-   char bootdev[1024];
-   char spart[1024];
+   struct stat st1;
    char buffer[1024];
-   int force = 0;
-   int f, inc_name;
-   extern int optind;
-   extern char *optarg;
-   int floppy = 0;
-   off_t stage_size = 0;
+   int version = 0;
+   off_t doff = 0;
+   unsigned part_index = 0;
+   ssize_t secsize = 0;
+   ssize_t stage_size = 0;
 
    /*
     * Test if we're being run on a chrp machine.  We don't
@@ -613,38 +418,17 @@ int main(int argc,char **argv)
          fgets(s, 256, f);
          if (!strncmp(s,"machine\t\t: CHRP", 15))
          {
-            fprintf(stderr, "Quik does not need to be run "
+            fprintf(stderr, "iQUIK does not need to be run "
                     "on CHRP machines.\n");
             exit(0);
          }
       }
    }
 
-   config_file = NULL;
-   backup = DFL_BACKUP;
-   secondary = DFL_SECONDARY;
-   new_root = NULL;
-   name = argv[0];
-   while ((c = getopt(argc, argv, "b:i:fC:S:s:r:FvVh")) != -1) {
+   while ((c = getopt(argc, argv, "b:d:r:vVTh")) != -1) {
       switch(c) {
       case 'b':
          secondary = optarg;
-         break;
-      case 'i':
-         install = optarg;
-         break;
-      case 'f':
-         force = 1;
-         break;
-      case 'C':
-         config_file = optarg;
-         break;
-      case 'S':
-         backup = optarg;
-         force_backup = 1;
-         break;
-      case 's':
-         backup = optarg;
          break;
       case 'r':
          new_root = optarg;
@@ -652,165 +436,77 @@ int main(int argc,char **argv)
       case 'v':
          verbose = 1;
          break;
+      case 'T':
+         test_mode = 1;
+         break;
       case 'V':
          version = 1;
          break;
       case 'h':
-         usage(name);
+         usage(argv[0]);
          break;
-      case 'F':
-         floppy = 1;
+      case 'd':
+         basedev = optarg;
          break;
       }
    }
 
    if (version) {
-      printf("QUIK version " VERSION "\n");
+      printf("iQUIK version " VERSION "\n");
       exit(0);
    }
 
    if (optind < argc) {
-      usage(name);
+      usage(argv[0]);
    }
 
    if (!new_root) {
       new_root = getenv("ROOT");
    }
 
-   secondary = chrootcpy(secondary);
+   secondary = chrootcpy(new_root, secondary);
    if (stat(secondary, &st1) < 0) {
-      fatal("Cannot open second stage loader %s", secondary);
+      fatal("Cannot open second stage loader '%s'", secondary);
    }
 
-   if (!floppy) {
+   if (basedev == NULL) {
 
-   /* work out what sort of disk this is and how to
-      interpret the minor number */
-   unit_shift = 6;
-   part_mask = 0x3f;
-   inc_name = 1;
-   switch (MAJOR(st1.st_dev)) {
-   case SD_MAJOR:
-      unit_shift = 4;
-      part_mask = 0x0f;
-      basedev = "/dev/sda";
-      break;
-   case HDA_MAJOR:
-      basedev = "/dev/hda";
-      break;
-   case HDC_MAJOR:
-      basedev = "/dev/hdc";
-      break;
-   case HDE_MAJOR:
-      basedev = "/dev/hde";
-      break;
-   case HDG_MAJOR:
-      basedev = "/dev/hdg";
-      break;
-   default:
-      p = find_dev(st1.st_dev);
-      if (p == NULL) {
-         fatal("Couldn't find out what device second stage boot is on");
-      }
-
-      basedev = p;
-      unit_shift = 0;
-      part_mask = 0;
-      inc_name = 0;
-   }
-
-   strcpy(bootdev, basedev);
-   if (inc_name) {
-      bootdev[7] += UNIT(st1.st_dev);
-   }
-
-   strcpy(spart, bootdev);
-   if (PART(st1.st_dev) != 0) {
-      sprintf(spart+8, "%d", PART(st1.st_dev));
-   }
-
-   if (verbose) {
-      printf("Second-stage loader is on %s\n", spart);
-   }
-
-   backup = chrootcpy (backup);
-
-   if (config_file == NULL) {
-      config_file = chrootcpy(DFL_CONFIG);
-      if (stat(config_file, &st2) < 0) {
-         char *p = chrootcpy(ALT_CONFIG);
-         if (stat(p, &st2) == 0) {
-            if (verbose) {
-               printf("Using alternate config file %s\n", ALT_CONFIG);
-            }
-            config_file = p;
+      /*
+       * work out what sort of disk this is.
+       */
+      switch (MAJOR(st1.st_dev)) {
+      case SD_MAJOR:
+         basedev = "/dev/sda";
+         break;
+      case HDA_MAJOR:
+         basedev = "/dev/hda";
+         break;
+      case HDC_MAJOR:
+         basedev = "/dev/hdc";
+         break;
+      case HDE_MAJOR:
+         basedev = "/dev/hde";
+         break;
+      case HDG_MAJOR:
+         basedev = "/dev/hdg";
+         break;
+      default:
+         basedev = find_dev(st1.st_dev);
+         if (basedev == NULL) {
+            fatal("Couldn't find out what device second stage boot is on");
          }
       }
    } else {
-      config_file = chrootcpy(config_file);
+      printf("Using overriden install device '%s'\n", basedev);
    }
 
-   if (stat(config_file, &st2) >= 0) {
-      if (MAJOR(st2.st_dev) != MAJOR(st1.st_dev)
-          || UNIT(st2.st_dev) != UNIT(st1.st_dev)
-          || PART(st2.st_dev) != PART(st1.st_dev)) {
-         fatal("Config file %s has to be on the %s device (any partition)",
-               config_file, bootdev);
-      }
-      strcpy(buffer, config_file);
-      config_file = resolve_to_dev(buffer, st2.st_dev);
-      if (inc_name) {
-         config_file_partno = PART(st2.st_dev);
-      } else {
-         config_file_partno = 1;
-      }
-
-      if (verbose) {
-         printf("Config file is on partition %d\n", config_file_partno);
-      }
-   }
-   if (backup && !force_backup) {
-      if (stat(backup, &st2) < 0) {
-         force_backup = 1;
-      }
-   }
-   } else {
-      strcpy(bootdev, "/dev/fd0");
-   }
-
-   read_sb(spart, bootdev, floppy, &part_index);
-
-   if (!floppy) {
-      if (!examine_bootblock(spart, backup, force_backup, 0)
-          || install || force) {
-         if (!install) {
-            install = chrootcpy(DFL_PRIMARY);
-         } else if (*install == '/') {
-            install = chrootcpy(install);
-         }
-
-         install_stage(spart, install, &stage_size, 0);
-         make_bootable(bootdev,
-                       spart,
-                       part_index,
-                       stage_size,
-                       FIRST_BASE);
-      }
-   } else {
-      install_stage("/dev/fd0", secondary, &stage_size, 1);
-      make_bootable("/dev/fd0",
-                    "/dev/fd0",
-                    part_index,
-                    stage_size,
-                    SECOND_BASE);
-   }
-
-   if (!floppy) {
-      get_partition_blocks(secondary);
-      write_block_table(spart, config_file,
-                        config_file_partno);
-   }
-
+   read_sb(basedev, &part_index, &doff, &secsize);
+   install_stage(basedev, secondary, &stage_size, doff);
+   make_bootable(basedev,
+                 secsize,
+                 part_index,
+                 stage_size,
+                 SECOND_BASE);
    sync();
    exit(0);
 }
