@@ -96,6 +96,7 @@ static void printkns(long n, int b)
 void vprintk(char *fmt, va_list adx)
 {
    char *n = "<NULL>";
+   quik_err_t err;
    char *s;
    char c;
 
@@ -125,6 +126,9 @@ void vprintk(char *fmt, va_list adx)
          } else {
             printks(n);
          }
+      } else if (c == 'r') {
+         err = va_arg(adx, quik_err_t);
+         printkr(err);
       } else if (c == 'p') {
          s = va_arg(adx, void *);
          if (s) {

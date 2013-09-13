@@ -11,23 +11,23 @@
 #define APPLE_AUX_TYPE	"Apple_UNIX_SVR2"
 
 struct mac_partition {
-    __u16	signature;	/* expected to be MAC_PARTITION_MAGIC */
-    __u16	res1;
-    __u32	map_count;	/* # blocks in partition map */
-    __u32	start_block;	/* absolute starting block # of partition */
-    __u32	block_count;	/* number of blocks in partition */
+    uint16_t	signature;	/* expected to be MAC_PARTITION_MAGIC */
+    uint16_t	res1;
+    uint32_t	map_count;	/* # blocks in partition map */
+    uint32_t	start_block;	/* absolute starting block # of partition */
+    uint32_t	block_count;	/* number of blocks in partition */
     char	name[32];	/* partition name */
     char	type[32];	/* string type description */
-    __u32	data_start;	/* rel block # of first data block */
-    __u32	data_count;	/* number of data blocks */
-    __u32	status;		/* partition status */
-    __u32	boot_start;	/* logical start block no. of bootstrap */
-    __u32	boot_size;	/* no. of bytes in bootstrap */
-    __u32	boot_load;	/* bootstrap load address in memory */
-    __u32	boot_load2;	/* reserved for extension of boot_load */
-    __u32	boot_entry;	/* entry point address for bootstrap */
-    __u32	boot_entry2;	/* reserved for extension of boot_entry */
-    __u32	boot_cksum;
+    uint32_t	data_start;	/* rel block # of first data block */
+    uint32_t	data_count;	/* number of data blocks */
+    uint32_t	status;		/* partition status */
+    uint32_t	boot_start;	/* logical start block no. of bootstrap */
+    uint32_t	boot_size;	/* no. of bytes in bootstrap */
+    uint32_t	boot_load;	/* bootstrap load address in memory */
+    uint32_t	boot_load2;	/* reserved for extension of boot_load */
+    uint32_t	boot_entry;	/* entry point address for bootstrap */
+    uint32_t	boot_entry2;	/* reserved for extension of boot_entry */
+    uint32_t	boot_cksum;
     char	processor[16];	/* name of processor that boot is for */
 };
 
@@ -38,8 +38,8 @@ struct mac_partition {
 
 /* Driver descriptor structure, in block 0 */
 struct mac_driver_desc {
-    __u16	signature;	/* expected to be MAC_DRIVER_MAGIC */
-    __u16	block_size;
-    __u32	block_count;
+    uint16_t	signature;	/* expected to be MAC_DRIVER_MAGIC */
+    uint16_t	block_size;
+    uint32_t	block_count;
     /* ... more stuff */
 };

@@ -29,9 +29,8 @@
  */
 
 #include "quik.h"
-#include <string.h>
+#include "disk.h"
 #include "file.h"
-#include "prom.h"
 #include <layout.h>
 
 #define LOW_BASE        ((void *) 0x14000)
@@ -374,11 +373,12 @@ static void
 print_message_file(boot_info_t *bi, char *p)
 {
    char *q, *endp;
-   int len = 0;
    char *message;
    int n, defpart = bi->config_part;
    char *device, *kname;
    int part;
+   length_t len;
+   quik_err_t err;
 
    q = cfg_get_strg(0, "partition");
    if (q) {
@@ -395,7 +395,8 @@ print_message_file(boot_info_t *bi, char *p)
       }
 
       message = LOW_BASE;
-      if (load_file(device, part, kname, LOW_BASE, LOW_END, &len, 1, 0)) {
+      err = load_file(device, part, kname, LOW_BASE, LOW_END, &len);
+      if (err == ERR_NONE) {
          message[len] = 0;
          printk("\n%s", message);
       }
@@ -413,16 +414,14 @@ int get_bootargs(boot_info_t *bi)
 /* Here we are launched */
 int main(void *prom_entry, struct first_info *fip, unsigned long id)
 {
-   int len;
-   fs_len_t image_len, initrd_len;
+   length_t config_len, image_len, initrd_len;
    char *kname, *initrd, *params, *device;
    load_state_t image;
    unsigned part;
-   int fileok = 0;
 
    char *load_buf;
    char *load_buf_end;
-   unsigned initrd_base;
+   void *initrd_base;
    extern char __bss_start, _end;
    quik_err_t err;
 
@@ -453,28 +452,26 @@ int main(void *prom_entry, struct first_info *fip, unsigned long id)
 
    get_bootargs(&bi);
 
-   diskinit(&bi);
+   disk_init(&bi);
    if (!bi.bootdevice ||
        bi.config_part == 0) {
       printk("Skipping loading configuration file due to missing or invalid configuration.\n");
    } else {
-      int len;
-
       printk("Configuration file @ %s:%d%s\n", bi.bootdevice,
              bi.config_part,
              bi.config_file);
 
-      fileok = load_file(bi.bootdevice,
-                         bi.config_part,
-                         bi.config_file,
-                         LOW_BASE,
-                         LOW_END,
-                         &len, 1, NULL);
-      if (!fileok || (unsigned) len >= 65535) {
-         printk("\nCouldn't load '%s'.\n", bi.config_file);
+      err = load_file(bi.bootdevice,
+                      bi.config_part,
+                      bi.config_file,
+                      LOW_BASE,
+                      LOW_END,
+                      &config_len);
+      if (err != ERR_NONE) {
+         printk("\nCouldn't load '%s': %u %r)\n", bi.config_file, err, err);
       } else {
          char *p;
-         if (cfg_parse(bi.config_file, LOW_BASE, len) < 0) {
+         if (cfg_parse(bi.config_file, LOW_BASE, config_len) < 0) {
             printk ("Syntax error or read error in %s.\n", bi.config_file);
          }
 
@@ -533,12 +530,12 @@ int main(void *prom_entry, struct first_info *fip, unsigned long id)
          load_buf_end = load_buf + image_len;
       }
 
-      fileok = load_file(device, part, kname,
-                         load_buf, load_buf_end,
-                         &image_len, 1, NULL);
+      err = load_file(device, part, kname,
+                      load_buf, load_buf_end,
+                      &image_len);
 
-      if (!fileok) {
-         printk("\nImage '%s' not found.\n", kname);
+      if (err != ERR_NONE) {
+         printk("\nCouldn't load '%s': %r\n", kname, err);
          continue;
       }
 
@@ -549,7 +546,7 @@ int main(void *prom_entry, struct first_info *fip, unsigned long id)
       }
 
       if (!initrd) {
-         initrd_base = 0;
+         initrd_base = NULL;
          initrd_len = 0;
          break;
       }
@@ -563,23 +560,23 @@ int main(void *prom_entry, struct first_info *fip, unsigned long id)
       }
 
       if ((void *) load_buf >= HIGH_BASE) {
-         initrd_base = (unsigned) load_buf_end;
+         initrd_base = load_buf_end;
       } else {
-         initrd_base = (unsigned) HIGH_BASE;
+         initrd_base = HIGH_BASE;
       }
 
-      initrd_base = (unsigned) prom_claim_chunk((void *) initrd_base, initrd_len, 0);
-      if (initrd_base == (unsigned) -1) {
+      initrd_base = prom_claim_chunk((void *) initrd_base, initrd_len, 0);
+      if (initrd_base == (void *) -1) {
          printk("Claim failed\n");
          continue;
       }
 
-      fileok = load_file(device, part, initrd,
-                         initrd_base,
-                         initrd_base + initrd_len,
-                         &initrd_len, 1, NULL);
-      if (!fileok) {
-         printk("Initrd '%s' not found.\n", initrd);
+      err = load_file(device, part, initrd,
+                      initrd_base,
+                      initrd_base + initrd_len,
+                      &initrd_len);
+      if (err != ERR_NONE) {
+         printk("\nCouldn't load '%s': %r\n", initrd, err);
          continue;
       }
 
@@ -591,8 +588,6 @@ int main(void *prom_entry, struct first_info *fip, unsigned long id)
 
       break;
    }
-
-   close();
 
    if (bi.flags & SHIM_OF) {
 

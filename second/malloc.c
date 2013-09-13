@@ -67,11 +67,3 @@ void release (void *ptr)
 {
    malloc_ptr = (char *) ptr;
 }
-
-void *strdup(char *str)
-{
-   char *p = malloc(strlen(str) + 1);
-
-   strcpy(p, str);
-   return p;
-}

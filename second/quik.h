@@ -19,23 +19,27 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#ifndef QUIK_QUIK_H
+#define QUIK_QUIK_H
+
 #include <inttypes.h>
 
 #define ALIGN_UP(addr, align) (((addr) + (align) - 1) & (~((align) - 1)))
 #define ALIGN(addr, align) (((addr) - 1) & (~((align) - 1)))
 #define SIZE_1M 0x100000
+#define NULL ((void *) 0)
 
 typedef uint32_t vaddr_t;
-typedef unsigned offset_t;
-typedef unsigned length_t;
+typedef uint64_t offset_t;
+typedef uint32_t length_t;
 
 /*
  * Loaded kernels described by this code.
  */
 typedef struct {
   vaddr_t buf;
-  vaddr_t  linked_base;
-  offset_t text_offset;
+  vaddr_t linked_base;
+  vaddr_t text_offset;
   length_t text_len;
   vaddr_t  entry;
 } load_state_t;
@@ -43,13 +47,22 @@ typedef struct {
 #define QUIK_ERR_LIST \
    QUIK_ERR_DEF(ERR_NONE, "no error")                                  \
    QUIK_ERR_DEF(ERR_DEV_OPEN, "cannot open device")                    \
+   QUIK_ERR_DEF(ERR_DEV_SHORT_READ, "short read on device")            \
+   QUIK_ERR_DEF(ERR_PART_NOT_MAC, "partition not macintosh")           \
+   QUIK_ERR_DEF(ERR_PART_NOT_DOS, "partition not dos")                 \
+   QUIK_ERR_DEF(ERR_PART_NOT_FOUND, "partition not found")             \
+   QUIK_ERR_DEF(ERR_PART_BEYOND, "access beyond partition size")       \
    QUIK_ERR_DEF(ERR_FS_OPEN, "cannot open volume as file system")      \
    QUIK_ERR_DEF(ERR_FS_NOT_FOUND, "file not found")                    \
-   QUIK_ERR_DEF(ERR_FS_EXT2FS, "internal ext2fs error")                \
+   QUIK_ERR_DEF(ERR_FS_NOT_EXT2, "FS is not ext2")                     \
+   QUIK_ERR_DEF(ERR_FS_CORRUPT, "FS is corrupted")                     \
+   QUIK_ERR_DEF(ERR_FS_LOOP, "symlink loop detected")                  \
+   QUIK_ERR_DEF(ERR_FS_TOO_BIG, "file is too large to be loaded")      \
    QUIK_ERR_DEF(ERR_ELF_NOT, "invalid kernel image")                   \
    QUIK_ERR_DEF(ERR_ELF_WRONG, "invalid kernel architecture")          \
    QUIK_ERR_DEF(ERR_ELF_NOT_LOADABLE, "not a loadable image")          \
    QUIK_ERR_DEF(ERR_KERNEL_RETURNED, "kernel returned")                \
+   QUIK_ERR_DEF(ERR_NO_MEM, "malloc failed")                           \
    QUIK_ERR_DEF(ERR_INVALID, "invalid error, likely a bug")            \
 
 #define QUIK_ERR_DEF(e, s) e,
@@ -98,7 +111,6 @@ typedef struct {
   char *pause_message;
 } boot_info_t;
 
-void diskinit(boot_info_t *bi);
 void cmdedit(void (*tabfunc)(boot_info_t *), boot_info_t *bi, int c);
 
 extern char cbuff[];
@@ -110,4 +122,26 @@ void cfg_print_images(void);
 char *cfg_get_default(void);
 
 void *malloc(unsigned);
+void spinner(int freq);
 
+uint32_t swab32(uint32_t value);
+uint16_t swab16(uint16_t value);
+char *strstr(const char *s1, const char *s2);
+char *strcpy(char *dest, const char *src);
+char *strncpy(char *dest, const char *src, length_t n);
+char *strcat(char *dest, const char *src);
+int strcmp(const char *s1, const char *s2);
+int strncmp(const char *s1, const char *s2, length_t n);
+length_t strlen(const char *s);
+char *strchr(const char *s, int c);
+char *strrchr(const char *s, int c);
+void *memset(void *s, int c, length_t n);
+void bcopy(const void *src, void *dest, length_t n);
+void *memcpy(void *dest, const void *src, length_t n);
+void *memmove(void *dest, const void *src, length_t n);
+int memcmp(const void *s1, const void *s2, length_t n);
+int tolower(int c);
+int strcasecmp(const char *s1, const char *s2);
+void * strdup(char *str);
+
+#endif /* QUIK_QUIK_H */

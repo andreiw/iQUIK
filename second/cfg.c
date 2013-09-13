@@ -22,7 +22,6 @@
 /* NOT glibc's <setjmp.h> - see note in ./setjmp.h */
 #include "setjmp.h"
 #include <stdarg.h>
-#include <string.h>
 #include "quik.h"
 
 typedef enum {

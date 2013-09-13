@@ -1,41 +1,34 @@
 #include "quik.h"
-#include "prom.h"
-#include <string.h>
+#include "disk.h"
 
-static char current_devname[512];
-static ihandle current_dev;
-
-int open(char *device)
+quik_err_t
+disk_open(char *device,
+          ihandle *dev)
 {
+   ihandle current_dev;
    current_dev = call_prom("open", 1, 1, device);
    if (current_dev == (ihandle) 0 || current_dev == (ihandle) -1) {
-      printk("\nCouldn't open %s\n", device);
-      return -1;
+      return ERR_DEV_OPEN;
    }
-   strcpy(current_devname, device);
-   return 0;
+
+   *dev = current_dev;
+   return ERR_NONE;
 }
 
-char *strstr(const char * s1,const char * s2)
+
+void
+disk_close(ihandle dev)
 {
-   int l1, l2;
-
-   l2 = strlen(s2);
-   if (!l2)
-      return (char *) s1;
-   l1 = strlen(s1);
-   while (l1 >= l2) {
-      l1--;
-      if (!memcmp(s1,s2,l2))
-         return (char *) s1;
-      s1++;
-   }
-   return NULL;
+   call_prom("close", 1, 1, dev);
 }
 
-void diskinit(boot_info_t *bi)
+
+void
+disk_init(boot_info_t *bi)
 {
    char *p;
+   ihandle dev;
+   quik_err_t err;
 
    if (bi->flags & BOOT_FROM_SECTOR_ZERO) {
       bi->bootdevice = bi->bootargs;
@@ -90,36 +83,33 @@ void diskinit(boot_info_t *bi)
       return;
    }
 
-   if (open(bi->bootdevice)) {
-      printk("Couldn't open '%s' - bad parameter or changed hardware.\n");
+   err = disk_open(bi->bootdevice, &dev);
+   if (err != ERR_NONE) {
+      printk("Couldn't open '%s': %r\n", err);
       bi->bootdevice = NULL;
    }
+
+   disk_close(dev);
 }
 
 
-int read(char *buf, int nbytes, long long offset)
+length_t
+disk_read(ihandle dev,
+          char *buf,
+          length_t nbytes,
+          offset_t offset)
 {
-   int nr;
+   length_t nr;
 
-   if (nbytes == 0)
+   if (nbytes == 0) {
       return 0;
-   nr = (int)call_prom("seek", 3, 1, current_dev, (unsigned int) (offset >> 32),
-                       (unsigned int) (offset & 0xFFFFFFFF));
-   nr = (int) call_prom("read", 3, 1, current_dev, buf, nbytes);
+   }
+
+   nr = (length_t) call_prom("seek", 3, 1, dev,
+                             (unsigned int) (offset >> 32),
+                             (unsigned int) (offset & 0xFFFFFFFF));
+
+   nr = (length_t) call_prom("read", 3, 1, dev,
+                             buf, nbytes);
    return nr;
-}
-
-void close()
-{
-   printk("Closing 0x%x\n", current_dev);
-   call_prom("close", 1, 1, current_dev);
-}
-
-int setdisk(char *device)
-{
-   if (strcmp(device, current_devname) == 0)
-      return 0;
-
-   close();
-   return open(device);
 }

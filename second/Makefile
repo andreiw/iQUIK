@@ -7,13 +7,13 @@ ASFLAGS=-D__ASSEMBLY__ -I../include
 LDFLAGS=-T ld.script -N -Ttext 0x3e0000
 
 OBJS =	crt0.o elf.o printf.o malloc.o main.o cmdline.o disk.o file.o \
-	cfg.o strtol.o prom.o cache.o string.o setjmp.o ctype.o \
-	nosys.o 
+	cfg.o strtol.o prom.o cache.o string.o setjmp.o util.o part.o \
+	ext2fs.o
 
 all: second.b
 
 second: $(OBJS)
-	$(LD) $(LDFLAGS) -Bstatic -o second $(OBJS) -lext2fs
+	$(LD) $(LDFLAGS) -Bstatic -o second $(OBJS)
 
 crt0.o:        crt0.S
 main.o:        main.c quik.h

@@ -1,7 +1,13 @@
 /*
- * FS support.
- *
  * Copyright (C) 2013 Andrei Warkentin <andrey.warkentin@gmail.com>
+ * (C) Copyright 2004
+ * esd gmbh <www.esd-electronics.com>
+ * Reinhard Arlt <reinhard.arlt@esd-electronics.com>
+ *
+ * based on code from grub2 fs/ext2.c and fs/fshelp.c by
+ *
+ * GRUB  --  GRand Unified Bootloader
+ * Copyright (C) 2003, 2004  Free Software Foundation, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,19 +24,15 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#ifndef QUIK_FS_H
-#define QUIK_FS_H
+#ifndef QUIK_EXT2FS_H
+#define QUIK_EXT2FS_H
 
-quik_err_t length_file(char *device,
-                       int partno,
-                       char *filename,
-                       length_t *len);
+#include "quik.h"
+#include "part.h"
 
-quik_err_t load_file(char *device,
-                     int partno,
-                     char *filename,
-                     void *buffer,
-                     void *limit,
-                     length_t *len);
+void ext2fs_close(void);
+quik_err_t ext2fs_read(char *buf, length_t len);
+quik_err_t ext2fs_mount(part_t *part);
+quik_err_t ext2fs_open(char *filename, length_t *out_len);
 
-#endif /* QUIK_FS_H */
+#endif

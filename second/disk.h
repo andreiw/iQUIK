@@ -1,5 +1,5 @@
 /*
- * FS support.
+ * Disk access code.
  *
  * Copyright (C) 2013 Andrei Warkentin <andrey.warkentin@gmail.com>
  *
@@ -18,19 +18,24 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#ifndef QUIK_FS_H
-#define QUIK_FS_H
+#ifndef QUIK_DISK_H
+#define QUIK_DISK_H
 
-quik_err_t length_file(char *device,
-                       int partno,
-                       char *filename,
-                       length_t *len);
+#include "quik.h"
+#include "prom.h"
 
-quik_err_t load_file(char *device,
-                     int partno,
-                     char *filename,
-                     void *buffer,
-                     void *limit,
-                     length_t *len);
+#define SECTOR_SIZE 512
+#define SECTOR_BITS 9
 
-#endif /* QUIK_FS_H */
+void disk_init(boot_info_t *bi);
+quik_err_t disk_open(char *device, ihandle *dev);
+void disk_close(ihandle dev);
+length_t disk_read(ihandle dev,
+                   char *buf,
+                   length_t nbytes,
+                   offset_t offset);
+
+
+
+
+#endif /* QUIK_PART_H */

@@ -30,6 +30,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdint.h>
 
 typedef unsigned u32;
 typedef unsigned char u8;

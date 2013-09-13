@@ -154,9 +154,9 @@ prom_shim(struct prom_args *args)
          }
 
          if (strcmp(name, "linux,initrd-start") == 0) {
-            *place = of_shim_state.initrd_base;
+           *place = (uint32_t) of_shim_state.initrd_base;
          } else if (strcmp(name, "linux,initrd-end") == 0) {
-            *place = of_shim_state.initrd_base +
+           *place = (uint32_t) of_shim_state.initrd_base +
                of_shim_state.initrd_len;
          } else {
             goto out;

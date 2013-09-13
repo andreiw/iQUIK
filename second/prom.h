@@ -2,8 +2,12 @@
  * Definitions for talking to the Open Firmware PROM on
  * Power Macintosh computers.
  *
+ * Copyright (C) 2013 Andrei Warkentin <andrey.warkentin@gmail.com>
  * Copyright (C) 1996 Paul Mackerras.
  */
+
+#ifndef QUIK_PROM_H
+#define QUIK_PROM_H
 
 typedef void *phandle;
 typedef void *ihandle;
@@ -42,9 +46,11 @@ struct prom_args {
 typedef struct of_shim_state {
 
   /* For PROM_SHALLOW_SETPROP. */
-  unsigned initrd_base;
+  void *initrd_base;
   unsigned initrd_len;
 
   /* For PROM_HIDE_MEDIABAY_ATA. */
   ihandle mediabay_ata;
 } of_shim_state_t;
+
+#endif /* QUIK_PROM_H */
