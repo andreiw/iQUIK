@@ -83,12 +83,11 @@ typedef struct {
   char *device;
 
 #define CONFIG_VALID          (1 << 1)
-#define BOOT_FROM_SECTOR_ZERO (1 << 2)
-#define PAUSE_BEFORE_BOOT     (1 << 3)
-#define DEBUG_BEFORE_BOOT     (1 << 4)
-#define TRIED_AUTO            (1 << 5)
-#define BOOT_PRE_2_4          (1 << 6)
-#define SHIM_OF               (1 << 7)
+#define PAUSE_BEFORE_BOOT     (1 << 2)
+#define DEBUG_BEFORE_BOOT     (1 << 3)
+#define TRIED_AUTO            (1 << 4)
+#define BOOT_PRE_2_4          (1 << 5)
+#define SHIM_OF               (1 << 6)
   unsigned flags;
 
   /* Config file path. E.g. /etc/quik.conf */

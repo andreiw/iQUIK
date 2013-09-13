@@ -378,7 +378,7 @@ static void printlabel (char *label)
       printl_count = 0;
 }
 
-void cfg_print_images (void)
+void cfg_print_images(void)
 {
    struct IMAGES *p;
    char *label, *alias;
@@ -397,8 +397,8 @@ void cfg_print_images (void)
       if (alias)
          printlabel (alias);
    }
-   printk ("\nYou can also type in custom image locations, in the form\n"
-           "{prom_path;}partno/path_to_image or {prom_path;}{partno}[start-end]\n");
+
+   printk ("\nYou can also type in custom image locations, in the form [device:][partno]/path\n");
 }
 
 char *cfg_get_default (void)

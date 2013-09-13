@@ -50,6 +50,7 @@ of_shim_state_t of_shim_state;
 
 void (*prom_entry)(void *);
 
+
 void
 prom_exit()
 {
@@ -62,6 +63,7 @@ prom_exit()
    for (;;)         /* should never get here */
       ;
 }
+
 
 void *
 call_prom(char *service, int nargs, int nret, ...)
@@ -82,6 +84,7 @@ call_prom(char *service, int nargs, int nret, ...)
    return prom_args.args[nargs];
 }
 
+
 void
 prom_print(char *msg)
 {
@@ -100,6 +103,7 @@ prom_print(char *msg)
    }
 }
 
+
 int
 putchar(int c)
 {
@@ -109,6 +113,7 @@ putchar(int c)
       putchar('\r');
    return (int) call_prom("write", 3, 1, prom_stdout, &ch, 1);
 }
+
 
 int
 getchar()
@@ -121,6 +126,7 @@ getchar()
    return r > 0? ch: -1;
 }
 
+
 int
 nbgetchar()
 {
@@ -128,6 +134,7 @@ nbgetchar()
 
    return (int) call_prom("read", 3, 1, prom_stdin, &ch, 1) > 0? ch: -1;
 }
+
 
 static void
 prom_shim(struct prom_args *args)
@@ -193,8 +200,10 @@ out:
    prom_entry(args);
 }
 
+
 void
-prom_init(void (*pp)(void *), boot_info_t *bi)
+prom_init(void (*pp)(void *),
+          boot_info_t *bi)
 {
    ihandle oprom;
    char ver[64];
@@ -233,7 +242,12 @@ prom_init(void (*pp)(void *), boot_info_t *bi)
    if (prom_flags & PROM_NEED_SHIM) {
       bi->flags |= SHIM_OF;
    }
+
+   prom_get_chosen("bootargs", bi->of_bootargs, sizeof(bi->of_bootargs));
+   printk("Passed arguments: '%s'\n", bi->of_bootargs);
+   bi->bootargs = bi->of_bootargs;
 }
+
 
 void
 prom_get_chosen(char *name, char *buf, int buflen)
@@ -242,16 +256,22 @@ prom_get_chosen(char *name, char *buf, int buflen)
    prom_getprop(prom_chosen, name, buf, buflen);
 }
 
+
 void
-prom_get_options(char *name, char *buf, int buflen)
+prom_get_options(char *name,
+                 char *buf,
+                 int buflen)
 {
    buf[0] = 0;
    if (prom_options != (void *) -1)
       prom_getprop(prom_options, name, buf, buflen);
 }
 
+
 int
-prom_get_alias(char *name, char *buf, int buflen)
+prom_get_alias(char *name,
+               char *buf,
+               int buflen)
 {
    buf[0] = 0;
    if (prom_aliases != (void *) -1) {
@@ -261,17 +281,20 @@ prom_get_alias(char *name, char *buf, int buflen)
    return 0;
 }
 
+
 int
 get_ms()
 {
    return (int) call_prom("milliseconds", 0, 1);
 }
 
+
 void
 prom_pause()
 {
    call_prom("enter", 0, 0);
 }
+
 
 void
 set_bootargs(char *params)
@@ -280,15 +303,17 @@ set_bootargs(char *params)
              strlen(params) + 1);
 }
 
+
 void *
-prom_claim(void *virt, unsigned int size, unsigned int align)
+prom_claim(void *virt,
+           unsigned int size,
+           unsigned int align)
 {
    int ret;
    void *result;
 
    if ((prom_flags & PROM_CLAIM_WORK_AROUND) &&
-       align == 0)
-   {
+       align == 0) {
 
       /*
        * Old OF requires we claim physical and virtual separately
@@ -320,6 +345,7 @@ prom_claim(void *virt, unsigned int size, unsigned int align)
 
    return call_prom("claim", 3, 1, virt, size, align);
 }
+
 
 /*
  * if address given is claimed look for other addresses to get the needed

@@ -52,6 +52,7 @@ void fatal(const char *msg)
    printk("\nFatal error: %s\n", msg);
 }
 
+
 void maintabfunc(boot_info_t *bi)
 {
    if (bi->flags & CONFIG_VALID) {
@@ -59,6 +60,7 @@ void maintabfunc(boot_info_t *bi)
       printk("boot: %s", cbuff);
    }
 }
+
 
 void parse_name(char *imagename,
                 int defpart,
@@ -87,16 +89,12 @@ void parse_name(char *imagename,
       *part = defpart;
    }
 
-   /* Range */
-   if (**kname == '[') {
-      return;
-   }
-
    /* Path */
    if (**kname != '/') {
       *kname = 0;
    }
 }
+
 
 void
 word_split(char **linep, char **paramsp)
@@ -133,6 +131,7 @@ word_split(char **linep, char **paramsp)
       *paramsp = p;
    }
 }
+
 
 char *
 make_params(boot_info_t *bi,
@@ -202,6 +201,7 @@ make_params(boot_info_t *bi,
 
    return buffer;
 }
+
 
 int get_params(boot_info_t *bi,
                char **device,
@@ -336,7 +336,6 @@ int get_params(boot_info_t *bi,
       return 0;
    } else if (!strcmp(*kname, "!shim")) {
       bi->flags |= SHIM_OF;
-      printk("WILL SHIM\n");
       *kname = NULL;
       return 0;
    } else if (!strcmp(*kname, "!halt")) {
@@ -356,15 +355,11 @@ int get_params(boot_info_t *bi,
       *device = defdevice;
    }
 
-   if (!*kname) {
-      printk(
-         "Enter the kernel image name as [device:][partno]/path, where partno is a\n"
-         "number from 0 to 16.  Instead of /path you can type [mm-nn] to specify a\n"
-         "range of disk blocks (512B)\n");
-   }
+   cfg_print_images();
 
    return 0;
 }
+
 
 /*
  * Print the specified message file.
@@ -403,16 +398,9 @@ print_message_file(boot_info_t *bi, char *p)
    }
 }
 
-int get_bootargs(boot_info_t *bi)
-{
-   prom_get_chosen("bootargs", bi->of_bootargs, sizeof(bi->of_bootargs));
-   printk("Passed arguments: '%s'\n", bi->of_bootargs);
-   bi->bootargs = bi->of_bootargs;
-   return 0;
-}
 
 /* Here we are launched */
-int main(void *prom_entry, struct first_info *fip, unsigned long id)
+int main(void *a1, void *a2, void *prom_entry)
 {
    length_t config_len, image_len, initrd_len;
    char *kname, *initrd, *params, *device;
@@ -428,29 +416,12 @@ int main(void *prom_entry, struct first_info *fip, unsigned long id)
    /* Always first. */
    memset(&__bss_start, 0, &_end - &__bss_start);
 
-   /*
-    * If we're not being called by the first stage bootloader,
-    * then we must have booted from OpenFirmware directly, via
-    * bootsector 0.
-    */
-   if (id != 0xdeadbeef) {
-      bi.flags |= BOOT_FROM_SECTOR_ZERO;
-
-      /* OF passes prom_entry in r5 */
-      prom_entry = (void *) id;
-   } else {
-      bi.config_file = fip->conf_file;
-      bi.config_part = fip->conf_part;
-   }
-
    prom_init(prom_entry, &bi);
    printk("iQUIK OldWorld Bootloader\n");
    printk("Copyright (C) 2013 Andrei Warkentin <andrey.warkentin@gmail.com>\n");
    if (bi.flags & SHIM_OF) {
       printk("This firmware requires a shim to work around bugs.\n");
    }
-
-   get_bootargs(&bi);
 
    disk_init(&bi);
    if (!bi.bootdevice ||

@@ -1,4 +1,4 @@
-DIRS=	util first second quik
+DIRS=	util second quik
 .EXPORT_ALL_VARIABLES:
 CC=gcc
 
@@ -12,7 +12,7 @@ install:
 	install -d -m 755 $(DESTDIR)/usr/man/man5
 	install -d -m 755 $(DESTDIR)/usr/man/man8
 	install -s quik/quik $(DESTDIR)/sbin
-	install -m 444 first/first.b second/second.b second/second $(DESTDIR)/boot
+	install -m 444 second/second.b second/second $(DESTDIR)/boot
 	if [ -f $(DESTDIR)/etc/quik.conf ]; then :; \
 	  else set -x; install -m 644 etc/quik.conf $(DESTDIR)/etc; fi
 	install -m 444 man/quik.conf.5 $(DESTDIR)/usr/man/man5

@@ -30,53 +30,29 @@ disk_init(boot_info_t *bi)
    ihandle dev;
    quik_err_t err;
 
-   if (bi->flags & BOOT_FROM_SECTOR_ZERO) {
-      bi->bootdevice = bi->bootargs;
-      word_split(&bi->bootdevice, &bi->bootargs);
+   bi->bootdevice = bi->bootargs;
+   word_split(&bi->bootdevice, &bi->bootargs);
 
-      if (!bi->bootdevice) {
-         printk("No booting device passed as argument.\n");
-         return;
-      }
-   } else {
-      bi->bootdevice = NULL;
-
-      prom_get_chosen("bootpath", bi->of_bootdevice, sizeof(bi->of_bootdevice));
-      if (bi->of_bootdevice[0] == 0) {
-         prom_get_options("boot-device", bi->of_bootdevice, sizeof(bi->of_bootdevice));
-      }
-
-      if (bi->of_bootdevice[0] != 0) {
-         bi->bootdevice = bi->of_bootdevice;
-      }
-
-      if (!bi->bootdevice) {
-         printk("Could not figure out booting device from either /chosen/bootpath or boot-device.\n");
-         return;
-      }
+   if (!bi->bootdevice) {
+      printk("No booting device passed as argument.\n");
+      return;
    }
 
    p = strchr(bi->bootdevice, ':');
    if (p != 0) {
-      if (bi->flags & BOOT_FROM_SECTOR_ZERO) {
-         bi->config_part = strtol(p + 1, NULL, 0);
-      }
-
+      bi->config_part = strtol(p + 1, NULL, 0);
       *p++ = 0;
-      if (bi->flags & BOOT_FROM_SECTOR_ZERO) {
 
-         /* Are we given a config file path? */
-         p = strchr(p, '/');
-         if (p != 0) {
-            bi->config_file = p;
-         } else {
-            bi->config_file = "/etc/quik.conf";
-         }
+      /* Are we given a config file path? */
+      p = strchr(p, '/');
+      if (p != 0) {
+         bi->config_file = p;
+      } else {
+         bi->config_file = "/etc/quik.conf";
       }
    }
 
-   if ((bi->flags & BOOT_FROM_SECTOR_ZERO) &&
-       bi->config_part == 0) {
+   if (bi->config_part == 0) {
 
       /* No idea where's we looking for the configuration file. */
       printk("Booting device did not specify partition\n");
