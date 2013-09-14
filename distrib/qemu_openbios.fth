@@ -1,0 +1,71 @@
+\
+\ This example shows how to boot iQUIK under qemu-system-ppc
+\ with the OpenBIOS firmware and the floppy.img image
+\ from iQUIK distrib.
+\
+\ Unlike a PowerMac's OF, OpenBIOS doesn't support partition-zero booting.
+\ We could of course boot the 'second' ELF that the raw boot block
+\ is generated from, but that would be cheating ;-).
+\
+\ Again, none of this is necessary on an OldWorld mac. Write floppy.img
+\ to a floppy then do a "boot fd:0".
+\
+\ OpenBIOS has no FD support so just attach it to first ATA channel, like so.
+\
+\ $ ./ppc-softmmu/qemu-system-ppc  -hda floppy.img -hdb install.img -serial stdin
+\
+\ [ install.img is assumed to contain the Debian wheezy bits from
+\   http://ftp.nl.debian.org/debian/dists/wheezy/main/installer-powerpc/current/images/powerpc/hd-media/
+\   ...keep in mind that initrd-size parameter is unsupported and unneeded ]
+\
+\ Then switch console to serial like -
+\ " /pci/mac-io/escc/ch-a" output
+\ " /pci/mac-io/escc/ch-a" input
+\
+\ ...and copy-paste in the rest of this file (or load it).
+\
+
+0 value ih
+
+\
+\ size and load-base need to match
+\ SECOND_BASE and SECOND_SIZE in
+\ quik/include/layout
+\
+10000 value size
+setenv load-base 3e0000
+
+\
+\ boot-file specifies where iQUIK will look
+\ for the configuration file. This corresponds to
+\ the second ATA disk (-hdb), first FAT partition.
+\
+setenv boot-file /pci/mac-io/ata-1/disk@1:1/yaboot.conf
+
+\
+\ OpenBIOS doesn't know how to parse the MAC "partition-zero"
+\ boot descriptor, so we'll manually load it. XXX:2 refers
+\ to the Apple_Boostrap partition on -hda, which in the floppy.img
+\ image is the first parition (wonky indexing... yes).
+\
+\ I don't really understand why OpenBIOS needs the seek to 0.
+\ Seems like a bug...
+\
+" /pci/mac-io/ata-1/disk@0:2" open-dev to ih
+0 0 " seek" ih $call-method .
+load-base size " read" ih $call-method .
+
+\
+\ Based on OpenBIOS libopenbios/bootcode_load.c
+\
+load-base saved-program-state >sps.entry !
+size saved-program-state >sps.file-size !
+bootcode saved-program-state >sps.file-type !
+-1 state-valid !
+
+\
+\ Now can boot. For completeness probably should set
+\ /chosen/bootargs but iQUIK can handle the inconsistency.
+\
+ih close-dev
+go

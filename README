@@ -2,8 +2,12 @@ iQUIK - the new old PowerMac bootloader
 =======================================
 
 iQUIK is an effort to maintain the old QUIK bootloader,
-and is the only way to boot something recent on an
+and is the only way to boot a recent Linux kernel on an
 OldWorld, at least known to me.
+
+OldWorld PowerMacs are all PCI-based macs with OpenFirmware,
+but without built-in on-board USB. The OpenFirmware versions
+are < 3.0.
 
 [ As a proud owner of a '97 PB 3400c. iQUIK has been my
   painful journey towards running first 2.4 with initrd,
@@ -210,6 +214,15 @@ boot: !debug
 [ will pause at important places during boot-up so you can track progress ]
 
 
+quik.conf differences
+=====================
+
+* Symlinks are supported
+* initrd-size argument is unnecessary and not supported
+* initrd can contain OF device:part
+* forth eval image names via $ not supported (it was broken anyway).
+
+
 Future development
 ==================
 
@@ -219,6 +232,8 @@ The next items I'll probably look at, are (in no order):
 2) FAT and ISO9660 support.
 3) OF 1.0.5 testing.
 4) More uncruftification.
+5) Allow specifying a whole disk file system (need partitions today).
+6) Build an XCOFF variant for loading from iso9660, enet, etc.
 
 
 Contact Info
