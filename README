@@ -52,6 +52,8 @@ Prebuilts
 I've checked-in the current prebuilts for iQUIK under distrib/.
 * 'quik' is the installer, built under Wheezy.
 * 'second.b' is the iQUIK boot code
+* 'quik.conf' is pretty self-explanatory. It doesn't try to be
+   exhaustive.
 * 'floppy.img' can be written out to a 1.44MB and booted via 'boot fd:0'.
 
 [ The 'floppy-cfg.img' is an example image with a config file. It can
