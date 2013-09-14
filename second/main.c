@@ -37,8 +37,6 @@
 #define LOW_END         ((void *) SECOND_BASE)
 #define HIGH_BASE       ((void *) 0x800000)
 
-of_shim_state_t of_shim_state;
-
 static boot_info_t bi;
 
 static char *pause_message = "Type go<return> to continue.\n";
@@ -206,18 +204,17 @@ make_params(boot_info_t *bi,
 
 
 void
-command_ls(char *args,
-           char *defdevice,
-           unsigned defpart)
+command_ls(boot_info_t *bi,
+           char *args)
 {
    char *device;
    unsigned part;
    quik_err_t err;
    char *path;
 
-   parse_name(args, defpart, &device, &part, &path);
+   parse_name(args, bi->default_part, &device, &part, &path);
    if (device == NULL) {
-      device = defdevice;
+      device = bi->default_device;
    }
 
    if (path == NULL) {
@@ -233,6 +230,23 @@ command_ls(char *args,
 }
 
 
+void
+bang_commands(boot_info_t *bi, char *args)
+{
+   if (!strcmp(args, "debug")) {
+      bi->flags |= DEBUG_BEFORE_BOOT;
+   } else if (!strcmp(args, "shim")) {
+      bi->flags |= SHIM_OF;
+   } else if (!strcmp(args, "halt")) {
+      prom_pause();
+   } else if (!memcmp(args, "ls", 2)) {
+      command_ls(bi, args + 2);
+   } else {
+      printk("Available commands: !debug, !shim, !halt, !ls\n");
+   }
+}
+
+
 int get_params(boot_info_t *bi,
                char **device,
                unsigned *part,
@@ -240,20 +254,18 @@ int get_params(boot_info_t *bi,
                char **initrd,
                char **params)
 {
-   char *defdevice = 0;
    char *p, *q, *endp;
    int c, n;
    char *label;
    int timeout = -1;
    int beg = 0, end;
    quik_err_t err;
-   unsigned defpart;
 
    if ((bi->flags & TRIED_AUTO) == 0) {
       bi->flags ^= TRIED_AUTO;
       *params = bi->bootargs;
       *kname = *params;
-      *device = bi->bootdevice;
+      *device = bi->default_device;
 
       /*
        * AndreiW:
@@ -291,8 +303,6 @@ int get_params(boot_info_t *bi,
    }
 
    label = 0;
-   defdevice = *device;
-   defpart = bi->config_part;
 
    if (c == '\n') {
       printk("%s", *kname);
@@ -306,21 +316,8 @@ int get_params(boot_info_t *bi,
       cmdedit(maintabfunc, bi, c);
       printk("\n");
 
-      if (cbuff[0] == '!' || cbuff[0] == '$') {
-         if (!strcmp(cbuff, "!debug")) {
-            bi->flags |= DEBUG_BEFORE_BOOT;
-         } else if (!strcmp(cbuff, "!shim")) {
-            bi->flags |= SHIM_OF;
-         } else if (!strcmp(cbuff, "!halt")) {
-            prom_pause();
-         } else if (!memcmp(cbuff, "!ls", 3)) {
-            command_ls(cbuff + 3, defdevice, defpart);
-         } else if (*cbuff == '$') {
-
-            /* forth command string */
-            call_prom("interpret", 1, 1, cbuff + 1);
-         }
-
+      if (cbuff[0] == '!') {
+         bang_commands(bi, cbuff + 1);
          *kname = NULL;
          return 0;
       }
@@ -331,14 +328,14 @@ int get_params(boot_info_t *bi,
 
    if (bi->flags & CONFIG_VALID) {
       if(cfg_get_strg(0, "device") != NULL) {
-         defdevice = cfg_get_strg(0, "device");
+         bi->default_device = cfg_get_strg(0, "device");
       }
 
       p = cfg_get_strg(0, "partition");
       if (p) {
          n = strtol(p, &endp, 10);
          if (endp != p && *endp == 0)
-            defpart = n;
+            bi->default_part = n;
       }
 
       p = cfg_get_strg(0, "pause-message");
@@ -354,14 +351,14 @@ int get_params(boot_info_t *bi,
 
          p = cfg_get_strg(label, "device");
          if (p) {
-            defdevice = p;
+            bi->default_device = p;
          }
 
          p = cfg_get_strg(label, "partition");
          if (p) {
             n = strtol(p, &endp, 10);
             if (endp != p && *endp == 0) {
-               defpart = n;
+               bi->default_part = n;
             }
          }
 
@@ -380,13 +377,13 @@ int get_params(boot_info_t *bi,
       }
    }
 
-   parse_name(*kname, defpart, device, part, kname);
+   parse_name(*kname, bi->default_part, device, part, kname);
    if (!*device) {
-      *device = defdevice;
+      *device = bi->default_device;
    }
 
    if (*kname == NULL) {
-      cfg_print_images();
+      printk("<TAB> for list of bootable images, or !help\n");
    }
 
    return 0;
@@ -401,7 +398,7 @@ print_message_file(boot_info_t *bi, char *p)
 {
    char *q, *endp;
    char *message;
-   int n, defpart = bi->config_part;
+   int n, defpart = bi->default_part;
    char *device, *kname;
    int part;
    length_t len;
@@ -421,6 +418,10 @@ print_message_file(boot_info_t *bi, char *p)
          device = cfg_get_strg(0, "device");
       }
 
+      if (!device) {
+         device = bi->default_device;
+      }
+
       message = LOW_BASE;
       err = load_file(device, part, kname, LOW_BASE, LOW_END, &len);
       if (err == ERR_NONE) {
@@ -434,14 +435,13 @@ print_message_file(boot_info_t *bi, char *p)
 /* Here we are launched */
 int main(void *a1, void *a2, void *prom_entry)
 {
-   length_t config_len, image_len, initrd_len;
+   length_t config_len, image_len;
    char *kname, *initrd, *params, *device;
    load_state_t image;
    unsigned part;
 
    char *load_buf;
    char *load_buf_end;
-   void *initrd_base;
    extern char __bss_start, _end;
    quik_err_t err;
 
@@ -456,16 +456,16 @@ int main(void *a1, void *a2, void *prom_entry)
    }
 
    disk_init(&bi);
-   if (!bi.bootdevice ||
-       bi.config_part == 0) {
+   if (!bi.default_device ||
+       bi.default_part == 0) {
       printk("Skipping loading configuration file due to missing or invalid configuration.\n");
    } else {
-      printk("Configuration file @ %s:%d%s\n", bi.bootdevice,
-             bi.config_part,
+      printk("Configuration file @ %s:%d%s\n", bi.default_device,
+             bi.default_part,
              bi.config_file);
 
-      err = load_file(bi.bootdevice,
-                      bi.config_part,
+      err = load_file(bi.default_device,
+                      bi.default_part,
                       bi.config_file,
                       LOW_BASE,
                       LOW_END,
@@ -549,35 +549,35 @@ int main(void *a1, void *a2, void *prom_entry)
       }
 
       if (!initrd) {
-         initrd_base = NULL;
-         initrd_len = 0;
+         bi.initrd_base = NULL;
+         bi.initrd_len = 0;
          break;
       }
 
       printk("Loading %s\n", initrd);
 
-      err = length_file(device, part, initrd, &initrd_len);
+      err = length_file(device, part, initrd, &bi.initrd_len);
       if (err != ERR_NONE) {
          printk("Error fetching size for '%s': %r\n", initrd, err);
          continue;
       }
 
       if ((void *) load_buf >= HIGH_BASE) {
-         initrd_base = load_buf_end;
+         bi.initrd_base = load_buf_end;
       } else {
-         initrd_base = HIGH_BASE;
+         bi.initrd_base = HIGH_BASE;
       }
 
-      initrd_base = prom_claim_chunk((void *) initrd_base, initrd_len, 0);
-      if (initrd_base == (void *) -1) {
+      bi.initrd_base = prom_claim_chunk((void *) bi.initrd_base, bi.initrd_len, 0);
+      if (bi.initrd_base == (void *) -1) {
          printk("Claim failed\n");
          continue;
       }
 
       err = load_file(device, part, initrd,
-                      initrd_base,
-                      initrd_base + initrd_len,
-                      &initrd_len);
+                      bi.initrd_base,
+                      bi.initrd_base + bi.initrd_len,
+                      &bi.initrd_len);
       if (err != ERR_NONE) {
          printk("\nCouldn't load '%s': %r\n", initrd, err);
          continue;
@@ -592,22 +592,13 @@ int main(void *a1, void *a2, void *prom_entry)
       break;
    }
 
-   if (bi.flags & SHIM_OF) {
-
-      /*
-       * AndreiW: This stuff should be tucked in into prom.c.
-       */
-      of_shim_state.initrd_base = initrd_base;
-      of_shim_state.initrd_len = initrd_len;
-   }
-
    if (bi.flags & DEBUG_BEFORE_BOOT) {
       if (bi.flags & BOOT_PRE_2_4) {
          printk("Booting pre-2.4 kernel\n");
       }
 
       printk("Kernel: 0x%x @ 0x%x\n", image.text_len, image.linked_base);
-      printk("Initrd: 0x%x @ 0x%x\n", initrd_len, initrd_base);
+      printk("Initrd: 0x%x @ 0x%x\n", bi.initrd_len, bi.initrd_base);
       printk("Kernel parameters: %s\n", params);
       printk("Entry = 0x%x\n", image.entry);
       printk(pause_message);
@@ -619,8 +610,8 @@ int main(void *a1, void *a2, void *prom_entry)
       printk("\n");
    }
 
-   err = elf_boot(&bi, &image, initrd_base,
-                  initrd_len, params);
+   err = elf_boot(&bi, &image, bi.initrd_base,
+                  bi.initrd_len, params);
    printk("Booted kernel returned: %r", err);
    prom_exit();
 }

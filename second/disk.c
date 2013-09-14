@@ -1,3 +1,23 @@
+/*
+ * Disk access.
+ *
+ * Copyright (C) 2013, Andrei Warkentin <andrey.warkentin@gmail.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+*/
+
 #include "quik.h"
 #include "disk.h"
 
@@ -35,17 +55,17 @@ disk_init(boot_info_t *bi)
    ihandle dev;
    quik_err_t err;
 
-   bi->bootdevice = bi->bootargs;
-   word_split(&bi->bootdevice, &bi->bootargs);
+   bi->default_device = bi->bootargs;
+   word_split(&bi->default_device, &bi->bootargs);
 
-   if (!bi->bootdevice) {
+   if (!bi->default_device) {
       printk("No booting device passed as argument.\n");
       return;
    }
 
-   p = strchr(bi->bootdevice, ':');
+   p = strchr(bi->default_device, ':');
    if (p != 0) {
-      bi->config_part = strtol(p + 1, NULL, 0);
+      bi->default_part = strtol(p + 1, NULL, 0);
       *p++ = 0;
 
       /* Are we given a config file path? */
@@ -57,7 +77,7 @@ disk_init(boot_info_t *bi)
       }
    }
 
-   if (bi->config_part == 0) {
+   if (bi->default_part == 0) {
 
       /* No idea where's we looking for the configuration file. */
       printk("Booting device did not specify partition\n");

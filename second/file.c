@@ -20,12 +20,11 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
-
 #include "quik.h"
 #include "file.h"
 #include "ext2fs.h"
 
-part_t part;
+static part_t part;
 
 static quik_err_t
 open_ext2(char *device,

@@ -46,7 +46,15 @@ ihandle prom_memory;
 static unsigned prom_flags = 0;
 
 static struct prom_args prom_args;
-of_shim_state_t of_shim_state;
+
+typedef struct of_shim_state {
+  boot_info_t *bi;
+
+  /* For PROM_HIDE_MEDIABAY_ATA. */
+  phandle mediabay_ata;
+} of_shim_state_t;
+
+static of_shim_state_t of_shim_state;
 
 void (*prom_entry)(void *);
 
@@ -161,10 +169,10 @@ prom_shim(struct prom_args *args)
          }
 
          if (strcmp(name, "linux,initrd-start") == 0) {
-           *place = (uint32_t) of_shim_state.initrd_base;
+           *place = (uint32_t) of_shim_state.bi->initrd_base;
          } else if (strcmp(name, "linux,initrd-end") == 0) {
-           *place = (uint32_t) of_shim_state.initrd_base +
-               of_shim_state.initrd_len;
+           *place = (uint32_t) of_shim_state.bi->initrd_base +
+               of_shim_state.bi->initrd_len;
          } else {
             goto out;
          }
@@ -251,6 +259,8 @@ prom_init(void (*pp)(void *),
    prom_get_chosen("bootargs", bi->of_bootargs, sizeof(bi->of_bootargs));
    printk("Passed arguments: '%s'\n", bi->of_bootargs);
    bi->bootargs = bi->of_bootargs;
+
+   of_shim_state.bi = bi;
 }
 
 

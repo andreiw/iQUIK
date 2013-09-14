@@ -94,21 +94,28 @@ typedef struct {
   /* Config file path. E.g. /etc/quik.conf */
   char *config_file;
 
-  /* Partition index for config_file. */
-  unsigned config_part;
+  /*
+   * Partition index for config_file, then
+   * used as the default partition.
+   */
+  unsigned default_part;
+
+  /* Picked default boot device. */
+  char *default_device;
 
   /* Some reasonable size for bootargs. */
   char of_bootargs[512];
   char *bootargs;
 
-  /* boot-device or /chosen/bootpath */
-  char of_bootdevice[512];
-
-  /* Picked default boot device. */
-  char *bootdevice;
-
   /* Pause message. */
   char *pause_message;
+
+  /*
+   * Initrd location, here because it might be needed by
+   * PROM shimming.
+   */
+  void *initrd_base;
+  length_t initrd_len;
 } boot_info_t;
 
 void cmdedit(void (*tabfunc)(boot_info_t *), boot_info_t *bi, int c);

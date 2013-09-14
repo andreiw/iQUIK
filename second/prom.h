@@ -43,14 +43,4 @@ struct prom_args {
    void *args[10];
 };
 
-typedef struct of_shim_state {
-
-  /* For PROM_SHALLOW_SETPROP. */
-  void *initrd_base;
-  unsigned initrd_len;
-
-  /* For PROM_HIDE_MEDIABAY_ATA. */
-  phandle mediabay_ata;
-} of_shim_state_t;
-
 #endif /* QUIK_PROM_H */
