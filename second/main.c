@@ -248,24 +248,25 @@ bang_commands(boot_info_t *bi, char *args)
 
 
 int get_params(boot_info_t *bi,
-               char **device,
-               unsigned *part,
                char **kname,
+               char **kern_device,
+               unsigned *kern_part,
                char **initrd,
+               char **initrd_device,
+               unsigned *initrd_part,
                char **params)
 {
    char *p, *q, *endp;
    int c, n;
-   char *label;
    int timeout = -1;
    int beg = 0, end;
    quik_err_t err;
+   char *label = NULL;
 
    if ((bi->flags & TRIED_AUTO) == 0) {
       bi->flags ^= TRIED_AUTO;
       *params = bi->bootargs;
       *kname = *params;
-      *device = bi->default_device;
 
       /*
        * AndreiW:
@@ -301,8 +302,6 @@ int get_params(boot_info_t *bi,
          c = '\n';
       }
    }
-
-   label = 0;
 
    if (c == '\n') {
       printk("%s", *kname);
@@ -377,9 +376,38 @@ int get_params(boot_info_t *bi,
       }
    }
 
-   parse_name(*kname, bi->default_part, device, part, kname);
-   if (!*device) {
-      *device = bi->default_device;
+   parse_name(*kname, bi->default_part, kern_device, kern_part, kname);
+   if (!*kern_device) {
+      *kern_device = bi->default_device;
+   }
+
+   /*
+    * If we manually enterred kernel path, the initrd could
+    * be following in the param list...
+    */
+   if (label == NULL) {
+      char *p = strstr(*params, " --");
+
+      if (p == NULL) {
+         *initrd = *params;
+         word_split(initrd, params);
+      } else {
+
+         /*
+          * No initrd, just kernel args.
+          */
+         *params = p + 3;
+      }
+   }
+
+   /*
+    * In either case the initrd path could point to a different device...
+    */
+   if (*initrd) {
+      parse_name(*initrd, bi->default_part, initrd_device, initrd_part, initrd);
+      if (!*initrd_device) {
+         *initrd_device = bi->default_device;
+      }
    }
 
    if (*kname == NULL) {
@@ -436,9 +464,11 @@ print_message_file(boot_info_t *bi, char *p)
 int main(void *a1, void *a2, void *prom_entry)
 {
    length_t config_len, image_len;
-   char *kname, *initrd, *params, *device;
+   char *kname, *kern_device;
+   char *initrd, *initrd_device;
+   unsigned kern_part, initrd_part;
+   char *params;
    load_state_t image;
-   unsigned part;
 
    char *load_buf;
    char *load_buf_end;
@@ -499,16 +529,19 @@ int main(void *a1, void *a2, void *prom_entry)
    for (;;) {
       quik_err_t err;
 
-      get_params(&bi, &device, &part,
-                 &kname, &initrd, &params);
+      get_params(&bi,
+                 &kname, &kern_device, &kern_part,
+                 &initrd, &initrd_device, &initrd_part,
+                 &params);
       if (!kname) {
          continue;
       }
 
-      printk("Loading %s\n", kname);
-      err = length_file(device, part, kname, &image_len);
+      printk("Loading '%s:%u%s'\n", kern_device, kern_part, kname);
+      err = length_file(kern_device, kern_part, kname, &image_len);
       if (err != ERR_NONE) {
-         printk("Error fetching size for '%s': %r\n", kname, err);
+         printk("Error fetching size for '%s': %r\n",
+                kname, err);
          continue;
       }
 
@@ -533,7 +566,7 @@ int main(void *a1, void *a2, void *prom_entry)
          load_buf_end = load_buf + image_len;
       }
 
-      err = load_file(device, part, kname,
+      err = load_file(kern_device, kern_part, kname,
                       load_buf, load_buf_end,
                       &image_len);
 
@@ -554,9 +587,9 @@ int main(void *a1, void *a2, void *prom_entry)
          break;
       }
 
-      printk("Loading %s\n", initrd);
+      printk("Loading '%s:%u%s'\n", initrd_device, initrd_part, initrd);
 
-      err = length_file(device, part, initrd, &bi.initrd_len);
+      err = length_file(initrd_device, initrd_part, initrd, &bi.initrd_len);
       if (err != ERR_NONE) {
          printk("Error fetching size for '%s': %r\n", initrd, err);
          continue;
@@ -570,11 +603,11 @@ int main(void *a1, void *a2, void *prom_entry)
 
       bi.initrd_base = prom_claim_chunk((void *) bi.initrd_base, bi.initrd_len, 0);
       if (bi.initrd_base == (void *) -1) {
-         printk("Claim failed\n");
+         printk("Claim failed for %u bytes\n", bi.initrd_len);
          continue;
       }
 
-      err = load_file(device, part, initrd,
+      err = load_file(initrd_device, initrd_part, initrd,
                       bi.initrd_base,
                       bi.initrd_base + bi.initrd_len,
                       &bi.initrd_len);

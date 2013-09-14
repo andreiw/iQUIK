@@ -398,7 +398,10 @@ void cfg_print_images(void)
          printlabel (alias);
    }
 
-   printk ("\nYou can also type in custom image locations, in the form [device:][partno]/path\n");
+   printk("\nYou can also type in custom image locations, like:\n");
+   printk("[device:][partno]/vmlinux\n");
+   printk("[device:][partno]/vmlinux -- kernel arguments\n");
+   printk("[device:][partno]/vmlinux [device:][partno]/initrd kernel arguments\n");
 }
 
 char *cfg_get_default (void)
