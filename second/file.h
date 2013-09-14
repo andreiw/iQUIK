@@ -33,4 +33,8 @@ quik_err_t load_file(char *device,
                      void *limit,
                      length_t *len);
 
+quik_err_t list_files(char *device,
+                      int partno,
+                      char *path);
+
 #endif /* QUIK_FS_H */

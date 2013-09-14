@@ -174,7 +174,8 @@ prom_shim(struct prom_args *args)
       }
    }
 
-   if (prom_flags & PROM_HIDE_MEDIABAY_ATA) {
+   if (prom_flags & PROM_HIDE_MEDIABAY_ATA &&
+       of_shim_state.mediabay_ata != (phandle) -1) {
       if (strcmp(args->service, "child") == 0 ||
           strcmp(args->service, "peer") == 0 ||
           strcmp(args->service, "parent") == 0) {
@@ -205,6 +206,7 @@ void
 prom_init(void (*pp)(void *),
           boot_info_t *bi)
 {
+   phandle p;
    ihandle oprom;
    char ver[64];
 
@@ -214,7 +216,7 @@ prom_init(void (*pp)(void *),
 
    /* First get a handle for the stdout device */
    prom_chosen = call_prom("finddevice", 1, 1, "/chosen");
-   if (prom_chosen == (void *) -1) {
+   if (prom_chosen == (phandle) -1) {
       prom_exit();
    }
 
@@ -235,6 +237,9 @@ prom_init(void (*pp)(void *),
       prom_flags |= PROM_NEED_SHIM;
       prom_flags |= PROM_SHALLOW_SETPROP;
       prom_flags |= PROM_HIDE_MEDIABAY_ATA;
+   }
+
+   if (prom_flags & PROM_HIDE_MEDIABAY_ATA) {
       of_shim_state.mediabay_ata =
          call_prom("finddevice", 1, 1, "/bandit/ohare/media-bay/ata");
    }

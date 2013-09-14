@@ -145,6 +145,7 @@ part_open(char *device,
 {
    ihandle dev;
    quik_err_t err;
+   quik_err_t err2;
 
    if (part->flags & PART_VALID) {
       if (part->partno == partno &&
@@ -161,8 +162,14 @@ part_open(char *device,
    }
 
    err = read_mac_partition(dev, partno, part);
-   if (err != ERR_NONE) {
-      err = read_dos_partition(dev, partno, part);
+   if (err == ERR_PART_NOT_MAC) {
+      err2 = read_dos_partition(dev, partno, part);
+
+      if (err2 == ERR_PART_NOT_DOS) {
+         err = ERR_PART_NOT_PARTITIONED;
+      } else {
+         err = err2;
+      }
    }
 
    if (err != ERR_NONE) {
@@ -182,7 +189,7 @@ void
 part_close(part_t *part)
 {
    disk_close(part->dev);
-   memset(part, 0, sizeof(part));
+   memset(part, 0, sizeof(*part));
 }
 
 

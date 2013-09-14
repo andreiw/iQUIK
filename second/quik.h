@@ -45,25 +45,26 @@ typedef struct {
 } load_state_t;
 
 #define QUIK_ERR_LIST \
-   QUIK_ERR_DEF(ERR_NONE, "no error")                                  \
-   QUIK_ERR_DEF(ERR_DEV_OPEN, "cannot open device")                    \
-   QUIK_ERR_DEF(ERR_DEV_SHORT_READ, "short read on device")            \
-   QUIK_ERR_DEF(ERR_PART_NOT_MAC, "partition not macintosh")           \
-   QUIK_ERR_DEF(ERR_PART_NOT_DOS, "partition not dos")                 \
-   QUIK_ERR_DEF(ERR_PART_NOT_FOUND, "partition not found")             \
-   QUIK_ERR_DEF(ERR_PART_BEYOND, "access beyond partition size")       \
-   QUIK_ERR_DEF(ERR_FS_OPEN, "cannot open volume as file system")      \
-   QUIK_ERR_DEF(ERR_FS_NOT_FOUND, "file not found")                    \
-   QUIK_ERR_DEF(ERR_FS_NOT_EXT2, "FS is not ext2")                     \
-   QUIK_ERR_DEF(ERR_FS_CORRUPT, "FS is corrupted")                     \
-   QUIK_ERR_DEF(ERR_FS_LOOP, "symlink loop detected")                  \
-   QUIK_ERR_DEF(ERR_FS_TOO_BIG, "file is too large to be loaded")      \
-   QUIK_ERR_DEF(ERR_ELF_NOT, "invalid kernel image")                   \
-   QUIK_ERR_DEF(ERR_ELF_WRONG, "invalid kernel architecture")          \
-   QUIK_ERR_DEF(ERR_ELF_NOT_LOADABLE, "not a loadable image")          \
-   QUIK_ERR_DEF(ERR_KERNEL_RETURNED, "kernel returned")                \
-   QUIK_ERR_DEF(ERR_NO_MEM, "malloc failed")                           \
-   QUIK_ERR_DEF(ERR_INVALID, "invalid error, likely a bug")            \
+   QUIK_ERR_DEF(ERR_NONE, "no error")                                   \
+   QUIK_ERR_DEF(ERR_DEV_OPEN, "cannot open device")                     \
+   QUIK_ERR_DEF(ERR_DEV_SHORT_READ, "short read on device")             \
+   QUIK_ERR_DEF(ERR_PART_NOT_MAC, "partitioning not macintosh")         \
+   QUIK_ERR_DEF(ERR_PART_NOT_DOS, "partitioning not dos")               \
+   QUIK_ERR_DEF(ERR_PART_NOT_PARTITIONED, "invalid disk partitioning")  \
+   QUIK_ERR_DEF(ERR_PART_NOT_FOUND, "partition not found")              \
+   QUIK_ERR_DEF(ERR_PART_BEYOND, "access beyond partition size")        \
+   QUIK_ERR_DEF(ERR_FS_OPEN, "cannot open volume as file system")       \
+   QUIK_ERR_DEF(ERR_FS_NOT_FOUND, "file not found")                     \
+   QUIK_ERR_DEF(ERR_FS_NOT_EXT2, "FS is not ext2")                      \
+   QUIK_ERR_DEF(ERR_FS_CORRUPT, "FS is corrupted")                      \
+   QUIK_ERR_DEF(ERR_FS_LOOP, "symlink loop detected")                   \
+   QUIK_ERR_DEF(ERR_FS_TOO_BIG, "file is too large to be loaded")       \
+   QUIK_ERR_DEF(ERR_ELF_NOT, "invalid kernel image")                    \
+   QUIK_ERR_DEF(ERR_ELF_WRONG, "invalid kernel architecture")           \
+   QUIK_ERR_DEF(ERR_ELF_NOT_LOADABLE, "not a loadable image")           \
+   QUIK_ERR_DEF(ERR_KERNEL_RETURNED, "kernel returned")                 \
+   QUIK_ERR_DEF(ERR_NO_MEM, "malloc failed")                            \
+   QUIK_ERR_DEF(ERR_INVALID, "invalid error, likely a bug")             \
 
 #define QUIK_ERR_DEF(e, s) e,
 typedef enum {

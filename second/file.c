@@ -116,3 +116,19 @@ load_file(char *device,
 out:
    return err;
 }
+
+
+quik_err_t
+list_files(char *device,
+           int partno,
+           char *path)
+{
+   quik_err_t err;
+
+   err = open_ext2(device, partno, &part);
+   if (err != ERR_NONE) {
+      return err;
+   }
+
+   return ext2fs_ls(path);
+}

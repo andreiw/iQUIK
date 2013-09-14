@@ -50,7 +50,7 @@ typedef struct of_shim_state {
   unsigned initrd_len;
 
   /* For PROM_HIDE_MEDIABAY_ATA. */
-  ihandle mediabay_ata;
+  phandle mediabay_ata;
 } of_shim_state_t;
 
 #endif /* QUIK_PROM_H */

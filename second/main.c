@@ -42,8 +42,6 @@ of_shim_state_t of_shim_state;
 static boot_info_t bi;
 
 static char *pause_message = "Type go<return> to continue.\n";
-static char given_bootargs[512];
-static int given_bootargs_by_user = 0;
 
 #define DEFAULT_TIMEOUT -1
 
@@ -70,6 +68,10 @@ void parse_name(char *imagename,
 {
    int n;
    char *endp;
+
+   while (*imagename == ' ') {
+      imagename++;
+   }
 
    *kname = strchr(imagename, ':');
    if (!*kname) {
@@ -203,6 +205,34 @@ make_params(boot_info_t *bi,
 }
 
 
+void
+command_ls(char *args,
+           char *defdevice,
+           unsigned defpart)
+{
+   char *device;
+   unsigned part;
+   quik_err_t err;
+   char *path;
+
+   parse_name(args, defpart, &device, &part, &path);
+   if (device == NULL) {
+      device = defdevice;
+   }
+
+   if (path == NULL) {
+      path = "/";
+   }
+
+   printk("Listing '%s:%u%s'\n", device, part, path);
+   err = list_files(device, part, path);
+   if (err != ERR_NONE) {
+      printk("Error listing '%s:%u%s': %r\n",
+             device, part, path, err);
+   }
+}
+
+
 int get_params(boot_info_t *bi,
                char **device,
                unsigned *part,
@@ -216,7 +246,8 @@ int get_params(boot_info_t *bi,
    char *label;
    int timeout = -1;
    int beg = 0, end;
-   unsigned defpart = bi->config_part;
+   quik_err_t err;
+   unsigned defpart;
 
    if ((bi->flags & TRIED_AUTO) == 0) {
       bi->flags ^= TRIED_AUTO;
@@ -254,10 +285,14 @@ int get_params(boot_info_t *bi,
             c = nbgetchar();
          } while (c == -1 && get_ms() <= end);
       }
-      if (c == -1) {
+      if (c == -1 || c == '\r') {
          c = '\n';
       }
    }
+
+   label = 0;
+   defdevice = *device;
+   defpart = bi->config_part;
 
    if (c == '\n') {
       printk("%s", *kname);
@@ -270,14 +305,29 @@ int get_params(boot_info_t *bi,
       cmdinit();
       cmdedit(maintabfunc, bi, c);
       printk("\n");
-      strcpy(given_bootargs, cbuff);
-      given_bootargs_by_user = 1;
+
+      if (cbuff[0] == '!' || cbuff[0] == '$') {
+         if (!strcmp(cbuff, "!debug")) {
+            bi->flags |= DEBUG_BEFORE_BOOT;
+         } else if (!strcmp(cbuff, "!shim")) {
+            bi->flags |= SHIM_OF;
+         } else if (!strcmp(cbuff, "!halt")) {
+            prom_pause();
+         } else if (!memcmp(cbuff, "!ls", 3)) {
+            command_ls(cbuff + 3, defdevice, defpart);
+         } else if (*cbuff == '$') {
+
+            /* forth command string */
+            call_prom("interpret", 1, 1, cbuff + 1);
+         }
+
+         *kname = NULL;
+         return 0;
+      }
+
       *kname = cbuff;
       word_split(kname, params);
    }
-
-   label = 0;
-   defdevice = *device;
 
    if (bi->flags & CONFIG_VALID) {
       if(cfg_get_strg(0, "device") != NULL) {
@@ -330,32 +380,14 @@ int get_params(boot_info_t *bi,
       }
    }
 
-   if (!strcmp(*kname, "!debug")) {
-      bi->flags |= DEBUG_BEFORE_BOOT;
-      *kname = NULL;
-      return 0;
-   } else if (!strcmp(*kname, "!shim")) {
-      bi->flags |= SHIM_OF;
-      *kname = NULL;
-      return 0;
-   } else if (!strcmp(*kname, "!halt")) {
-      prom_pause();
-      *kname = NULL;
-      return 0;
-   } else if (*kname[0] == '$') {
-
-      /* forth command string */
-      call_prom("interpret", 1, 1, *kname + 1);
-      *kname = NULL;
-      return 0;
-   }
-
    parse_name(*kname, defpart, device, part, kname);
    if (!*device) {
       *device = defdevice;
    }
 
-   cfg_print_images();
+   if (*kname == NULL) {
+      cfg_print_images();
+   }
 
    return 0;
 }
@@ -439,7 +471,7 @@ int main(void *a1, void *a2, void *prom_entry)
                       LOW_END,
                       &config_len);
       if (err != ERR_NONE) {
-         printk("\nCouldn't load '%s': %u %r)\n", bi.config_file, err, err);
+         printk("\nCouldn't load '%s': %r)\n", bi.config_file, err);
       } else {
          char *p;
          if (cfg_parse(bi.config_file, LOW_BASE, config_len) < 0) {

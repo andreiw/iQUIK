@@ -34,5 +34,6 @@ void ext2fs_close(void);
 quik_err_t ext2fs_read(char *buf, length_t len);
 quik_err_t ext2fs_mount(part_t *part);
 quik_err_t ext2fs_open(char *filename, length_t *out_len);
+quik_err_t ext2fs_ls(char *dir);
 
 #endif /* QUIK_EXT2FS_H */

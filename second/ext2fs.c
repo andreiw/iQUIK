@@ -626,9 +626,9 @@ ext2fs_iterate_dir(ext2fs_node_t dir,
                break;
             }
 
-            printk ("%10d %s\n",
-                    __le32_to_cpu(fdiro->inode.size),
-                    filename);
+            printk("%d %s\n",
+                   __le32_to_cpu(fdiro->inode.size),
+                   filename);
          }
 
          free(fdiro);

@@ -6,6 +6,7 @@ disk_open(char *device,
           ihandle *dev)
 {
    ihandle current_dev;
+
    current_dev = call_prom("open", 1, 1, device);
    if (current_dev == (ihandle) 0 || current_dev == (ihandle) -1) {
       return ERR_DEV_OPEN;
@@ -19,7 +20,11 @@ disk_open(char *device,
 void
 disk_close(ihandle dev)
 {
-   call_prom("close", 1, 1, dev);
+
+   /*
+    * Out params is indeed '0' or the close won't happen. Grrr...
+    */
+   call_prom("close", 1, 0, dev);
 }
 
 
@@ -58,14 +63,6 @@ disk_init(boot_info_t *bi)
       printk("Booting device did not specify partition\n");
       return;
    }
-
-   err = disk_open(bi->bootdevice, &dev);
-   if (err != ERR_NONE) {
-      printk("Couldn't open '%s': %r\n", err);
-      bi->bootdevice = NULL;
-   }
-
-   disk_close(dev);
 }
 
 
