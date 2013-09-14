@@ -27,7 +27,6 @@
 ihandle prom_stdin;
 ihandle prom_stdout;
 ihandle prom_chosen;
-ihandle prom_aliases;
 ihandle prom_options;
 ihandle prom_mmu;
 ihandle prom_memory;
@@ -198,13 +197,11 @@ prom_shim(struct prom_args *args)
       }
    }
 
-#if 0
-   if (strcmp(args->service, "quiesce") == 0) {
-      printk("'go' to continue kernel boot\n");
-      prom_pause();
+   if (of_shim_state.bi->flags & DEBUG_BEFORE_BOOT) {
+      if (strcmp(args->service, "quiesce") == 0) {
+         prom_pause(NULL);
+      }
    }
-#endif
-
 out:
    prom_entry(args);
 }
@@ -230,7 +227,6 @@ prom_init(void (*pp)(void *),
 
    prom_memory = call_prom("open", 1, 1, "/memory");
    prom_getprop(prom_chosen, "mmu", &prom_mmu, sizeof(prom_mmu));
-   prom_aliases = call_prom("finddevice", 1, 1, "/aliases");
    prom_getprop(prom_chosen, "stdout", &prom_stdout, sizeof(prom_stdout));
    prom_getprop(prom_chosen, "stdin", &prom_stdin, sizeof(prom_stdin));
    prom_options = call_prom("finddevice", 1, 1, "/options");
@@ -284,20 +280,6 @@ prom_get_options(char *name,
 
 
 int
-prom_get_alias(char *name,
-               char *buf,
-               int buflen)
-{
-   buf[0] = 0;
-   if (prom_aliases != (void *) -1) {
-      return prom_getprop(prom_aliases, name, buf, buflen);
-   }
-
-   return 0;
-}
-
-
-int
 get_ms()
 {
    return (int) call_prom("milliseconds", 0, 1);
@@ -305,9 +287,15 @@ get_ms()
 
 
 void
-prom_pause()
+prom_pause(char *message)
 {
+   if (message == NULL) {
+      message = "Type go<return> to continue.\n";
+   }
+
+   printk("%s", message);
    call_prom("enter", 0, 0);
+   printk("\n");
 }
 
 

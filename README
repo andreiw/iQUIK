@@ -1,0 +1,225 @@
+iQUIK - the new old PowerMac bootloader
+=======================================
+
+iQUIK is an effort to maintain the old QUIK bootloader,
+and is the only way to boot something recent on an
+OldWorld, at least known to me.
+
+[ As a proud owner of a '97 PB 3400c. iQUIK has been my
+  painful journey towards running first 2.4 with initrd,
+  and then 2.6 kernels ]
+
+iQUIK differs from the plain-jane unmaintained QUIK in
+a number of important ways:
+
+1) It can boot large non-2.2 kernels.
+2) It can load an initrd.
+3) Introduces a layer to shim OF accesses during kernel
+   bootup, to work around OF bugs:
+   a) It tries working around OF 1.0.5 bugs but I've no
+      systems to test with at the moment.
+   b) It works around PB3400c hangs with media bay ATA
+      discovery handing 2.6.
+   c) Works around OF 2.0.1 setprop bugs that manifest
+      themselves as the kernel not finding its initrd.
+4) It builds with a recent toolchain (GCC 4.4)
+5) It doesn't require libext2fs, and yet supports
+   symlinks and the "!ls" command.
+6) It can boot from a floppy.
+7) It can boot from anything via partition zero.
+8) It drops the first stage loader and the finicky block maps,
+   and drops the support for loading arbitrary blocks.
+9) It can boot a kernel with an initrd without a quik.conf.
+10) Code is significantly less crufty, although could still use
+    quite a bit of work.
+
+
+Support
+=======
+
+Although meant for OldWorlds in general, it has only been tested
+on a PowerBook 3400c with OF 2.0.1. Testing on a UMAX clone
+with 1.0.5 is next. It would be nice to test with 2.4 and
+maybe even a NewWorld, although the later isn't a goal.
+
+You can boot Wheezy (2.6.32). It can probably boot later
+kernels too, although that is still untested.
+
+
+Prebuilts
+=========
+
+I've checked-in the current prebuilts for iQUIK under distrib/.
+* 'quik' is the installer, built under Wheezy.
+* 'second.b' is the iQUIK boot code
+* 'floppy.img' can be written out to a 1.44MB and booted via 'boot fd:0'.
+
+[ The 'floppy-cfg.img' is an example image with a config file. It can
+  be booted with 'boot fd:0 fd:3/quik.conf'. If you're wondering
+  how to create partitions either use loopback or a USB floppy, which
+  appears as a SCSI device ]
+
+
+Building
+========
+
+After fetching the sources.
+
+$ make && make install
+
+
+The boot flow
+=============
+
+OF will boot the device listed under the 'boot-device' environment variable.
+In our case it has to be the "partition zero" of whatever device you
+installed iQUIK onto.
+
+iQUIK will then try to locate the quik.conf file using the path in
+'boot-file'. 
+
+For me:
+boot-device     ata0/ata-disk@0:0
+boot-file       ata0/ata-disk@0:4
+
+...the later corresponds to /etc/quik.conf on /dev/hda4 on PB 3400c.
+
+Another example:
+boot-device     upper/pccard45,401@0:0
+boot-file       upper/pccard45,401@0:3/installer/quik.conf 
+
+iQUIK will then parse quik.conf similar to Yaboot, the old QUIK, MILO, LILO, etc.
+
+You get the typical 'boot:' prompt. Tab shows the list of images defined
+in your quik.conf, if any.
+
+You can also type in custon image locations, thus booting any arbitrary
+kernel with any initrd and any parameters, e.g.:
+       [device:][partno]/vmlinux
+       [device:][partno]/vmlinux -- kernel arguments
+       [device:][partno]/vmlinux [device:][partno]/initrd kernel arguments
+
+
+Installing
+==========
+
+Whatever medium you want to install QUIK on, it has to:
+1) Be mac partitioned
+2) Contain an Apple_Bootstrap partition.
+
+iQUIK does not support any other way of booting.
+
+Example (for floppy):
+root@3400c:~# mac-fdisk /dev/fd0
+/dev/fd0
+Command (? for help): p
+/dev/fd0
+        #                    type name                length   base    ( size )  system
+/dev/fd01     Apple_partition_map Apple                   63 @ 1       ( 31.5k)  Partition map
+/dev/fd02         Apple_Bootstrap bootstrap             1600 @ 64      (800.0k)  NewWorld bootblock
+/dev/fd03              Apple_Free Extra                 1216 @ 1664    (608.0k)  Free space
+
+Block size=512, Number of Blocks=2880
+DeviceType=0x0, DeviceId=0x0
+
+To do this I've used the 'i' command to initialize the partition table, and the 'b'
+command to create the new 800K bootstrap partition.
+
+Assuming the physical disk you've prepared as above contains your root partition
+(with /boot), running 
+
+$ quik
+
+...should be sufficient. 'quik -v' for verbosity. 'quik -T -v' if you just want
+to see what quik would have done. The tool will not do anything if you don't have
+an Apple_Bootstrap partition.
+
+If you want to install on some other media, use the '-d' flag:
+
+$ quik -d /dev/fd0
+
+If you want to use an alternate second.b (instead of the one in /boot), use the
+'-b' flag:
+
+$ quik -b /my/hacked/second.b
+
+NOTE: the 'quik' tool doesn't set the NVRAM variables itself. You need to do that yourself.
+
+Example:
+
+[ I installed to /dev/hda ]
+
+root@3400c:~# nvsetenv boot-device "ata0/ata-disk@0:0"
+
+[ Configuration is on /etc/quik.conf on /dev/hda4 ]
+
+root@3400c:~# nvsetenv boot-file "ata0/ata-disk@0:4"
+
+
+Other stuff
+===========
+
+From OF prompt, you can boot it several ways.
+
+0 > boot
+
+[ assuming boot-device and boot-file was correctly set ]
+
+0 > boot fd:0
+
+[ assuming boot-file was correctly set ]
+
+0 > boot fd:0 -- Linux26
+
+[ assuming boot-file was correctly set, iQUIK will immediately
+  boot the image specified by the label Linux26 ]
+
+0 > boot fd:0 ata0/ata-disk@0:4 Linux24
+
+[ tells iQUIK to load image Linux24 using the quik.conf file
+  at ata0/ata-disk@0:4/etc/quik.conf ]
+
+0 > boot upper/pccard45,401@0:0 upper/pccard45,401@0:4/installer/quik.conf
+
+[ tells iQUIK to boot from a CF card in top PCMCIA slot with a custom
+  quik.conf location on /dev/hdc4 ]
+
+Once you're at the boot prompt.
+
+boot: !ls
+
+[ list files on the default device/partition - the default device/partition
+  are the ones used to load quik.conf ]
+
+boot: !ls /boot
+
+[ list files under /boot on default device/partition ]
+
+boot: !ls upper/pccard45,401@0:4/installer
+
+[ list files under /install on partition 4 of CF card in top PCMCIA slot ]
+
+boot: !halt
+
+[ enters OF... type 'go' to get back ]
+
+boot: !debug
+
+[ will pause at important places during boot-up so you can track progress ]
+
+
+Future development
+==================
+
+The next items I'll probably look at, are (in no order):
+
+1) Testing with Debian/unstable and a 3.X kernel.
+2) FAT and ISO9660 support.
+3) OF 1.0.5 testing.
+4) More uncruftification.
+
+
+Contact Info
+============
+
+Andrei Warkentin (andrey.warkentin@gmail.com, andreiw@vmware.com)

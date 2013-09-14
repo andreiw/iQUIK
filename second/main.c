@@ -39,15 +39,7 @@
 
 static boot_info_t bi;
 
-static char *pause_message = "Type go<return> to continue.\n";
-
 #define DEFAULT_TIMEOUT -1
-
-void fatal(const char *msg)
-{
-   printk("\nFatal error: %s\n", msg);
-}
-
 
 void maintabfunc(boot_info_t *bi)
 {
@@ -234,7 +226,7 @@ bang_commands(boot_info_t *bi, char *args)
    } else if (!strcmp(args, "shim")) {
       bi->flags |= SHIM_OF;
    } else if (!strcmp(args, "halt")) {
-      prom_pause();
+      prom_pause(NULL);
    } else if (!memcmp(args, "ls", 2)) {
       command_ls(bi, args + 2);
    } else {
@@ -654,13 +646,9 @@ int main(void *a1, void *a2, void *prom_entry)
       printk("Initrd: 0x%x @ 0x%x\n", bi.initrd_len, bi.initrd_base);
       printk("Kernel parameters: %s\n", params);
       printk("Entry = 0x%x\n", image.entry);
-      printk(pause_message);
-      prom_pause();
-      printk("\n");
+      prom_pause(NULL);
    } else if (bi.flags & PAUSE_BEFORE_BOOT) {
-      printk("%s", bi.pause_message);
-      prom_pause();
-      printk("\n");
+      prom_pause(bi.pause_message);
    }
 
    err = elf_boot(&bi, &image, bi.initrd_base,
