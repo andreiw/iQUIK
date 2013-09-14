@@ -59,8 +59,19 @@ disk_init(boot_info_t *bi)
    word_split(&bi->default_device, &bi->bootargs);
 
    if (!bi->default_device) {
-      printk("No booting device passed as argument.\n");
-      return;
+      printk("Hmmm, no booting device passed as argument... ");
+      prom_get_options("boot-file", bi->bootfile, sizeof(bi->bootfile));
+   } else {
+      bi->default_device = chomp(bi->default_device);
+      if (memcmp(bi->default_device, "--", 2) == 0) {
+         printk("Default booting device requested... ");
+         prom_get_options("boot-file", bi->bootfile, sizeof(bi->bootfile));
+      }
+   }
+
+   if (bi->bootfile[0] != 0) {
+      printk("using boot-file '%s'\n", bi->bootfile);
+      bi->default_device = bi->bootfile;
    }
 
    p = strchr(bi->default_device, ':');

@@ -21,6 +21,17 @@
 
 #include "quik.h"
 
+char *
+chomp(char *s)
+{
+   while (*s == ' ') {
+      *s++;
+   }
+
+   return s;
+}
+
+
 int
 tolower(int c)
 {

@@ -74,14 +74,14 @@ typedef enum {
 
 typedef struct {
 
-  /* Real OF entry. */
-  vaddr_t prom_entry;
+   /* Real OF entry. */
+   vaddr_t prom_entry;
 
-  /* Our shim, if any. */
-  vaddr_t prom_shim;
+   /* Our shim, if any. */
+   vaddr_t prom_shim;
 
-  /* Boot device path. */
-  char *device;
+   /* Boot device path. */
+   char *device;
 
 #define CONFIG_VALID          (1 << 1)
 #define PAUSE_BEFORE_BOOT     (1 << 2)
@@ -89,33 +89,36 @@ typedef struct {
 #define TRIED_AUTO            (1 << 4)
 #define BOOT_PRE_2_4          (1 << 5)
 #define SHIM_OF               (1 << 6)
-  unsigned flags;
+   unsigned flags;
 
-  /* Config file path. E.g. /etc/quik.conf */
-  char *config_file;
+   /* Config file path. E.g. /etc/quik.conf */
+   char *config_file;
 
-  /*
-   * Partition index for config_file, then
-   * used as the default partition.
-   */
-  unsigned default_part;
+   /*
+    * Partition index for config_file, then
+    * used as the default partition.
+    */
+   unsigned default_part;
 
-  /* Picked default boot device. */
-  char *default_device;
+   /* Picked default boot device. */
+   char *default_device;
 
-  /* Some reasonable size for bootargs. */
-  char of_bootargs[512];
-  char *bootargs;
+   /* Some reasonable size for bootargs. */
+   char of_bootargs[512];
+   char *bootargs;
 
-  /* Pause message. */
-  char *pause_message;
+   /* Something reasonable for boot-file. */
+   char bootfile[512];
 
-  /*
-   * Initrd location, here because it might be needed by
-   * PROM shimming.
-   */
-  void *initrd_base;
-  length_t initrd_len;
+   /* Pause message. */
+   char *pause_message;
+
+   /*
+    * Initrd location, here because it might be needed by
+    * PROM shimming.
+    */
+   void *initrd_base;
+   length_t initrd_len;
 } boot_info_t;
 
 void cmdedit(void (*tabfunc)(boot_info_t *), boot_info_t *bi, int c);
@@ -150,5 +153,6 @@ int memcmp(const void *s1, const void *s2, length_t n);
 int tolower(int c);
 int strcasecmp(const char *s1, const char *s2);
 void * strdup(char *str);
+char *chomp(char *str);
 
 #endif /* QUIK_QUIK_H */

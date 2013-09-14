@@ -67,9 +67,7 @@ void parse_name(char *imagename,
    int n;
    char *endp;
 
-   while (*imagename == ' ') {
-      imagename++;
-   }
+   imagename = chomp(imagename);
 
    *kname = strchr(imagename, ':');
    if (!*kname) {
@@ -108,9 +106,7 @@ word_split(char **linep, char **paramsp)
       return;
    }
 
-   while (*p == ' ') {
-      ++p;
-   }
+   p = chomp(p);
 
    if (*p == 0) {
       *linep = NULL;
@@ -247,6 +243,9 @@ bang_commands(boot_info_t *bi, char *args)
 }
 
 
+/*
+ * FIXME: refactor me.
+ */
 int get_params(boot_info_t *bi,
                char **kname,
                char **kern_device,
@@ -258,10 +257,10 @@ int get_params(boot_info_t *bi,
 {
    char *p, *q, *endp;
    int c, n;
-   int timeout = -1;
    int beg = 0, end;
    quik_err_t err;
    char *label = NULL;
+   int timeout = DEFAULT_TIMEOUT;
 
    if ((bi->flags & TRIED_AUTO) == 0) {
       bi->flags ^= TRIED_AUTO;
@@ -279,12 +278,22 @@ int get_params(boot_info_t *bi,
       word_split(kname, params);
       if (!*kname) {
          *kname = cfg_get_default();
-      }
 
-      timeout = DEFAULT_TIMEOUT;
-      if ((bi->flags & CONFIG_VALID) &&
-          (q = cfg_get_strg(0, "timeout")) != 0 && *q != 0) {
-         timeout = strtol(q, NULL, 0);
+         /*
+          * Timeout only makes sense
+          * if we don't have an image name already
+          * passed.
+          */
+         if ((bi->flags & CONFIG_VALID) &&
+             (q = cfg_get_strg(0, "timeout")) != 0 && *q != 0) {
+           timeout = strtol(q, NULL, 0);
+         }
+      } else {
+
+         /*
+          * We have something, boot immediately.
+          */
+         timeout = 0;
       }
    }
 
@@ -376,6 +385,11 @@ int get_params(boot_info_t *bi,
       }
    }
 
+   /*
+    * If loading fails we don't want to destroy the cfg fields,
+    * through in-place modifications.
+    */
+   *kname = strdup(*kname);
    parse_name(*kname, bi->default_part, kern_device, kern_part, kname);
    if (!*kern_device) {
       *kern_device = bi->default_device;
@@ -386,9 +400,9 @@ int get_params(boot_info_t *bi,
     * be following in the param list...
     */
    if (label == NULL) {
-      char *p = strstr(*params, " --");
+      *params = chomp(*params);
 
-      if (p == NULL) {
+      if (memcmp(*params, "-- ", 3) != 0) {
          *initrd = *params;
          word_split(initrd, params);
       } else {
@@ -396,7 +410,7 @@ int get_params(boot_info_t *bi,
          /*
           * No initrd, just kernel args.
           */
-         *params = p + 3;
+         *params = *params + 3;
       }
    }
 
@@ -404,6 +418,12 @@ int get_params(boot_info_t *bi,
     * In either case the initrd path could point to a different device...
     */
    if (*initrd) {
+
+      /*
+       * If loading fails we don't want to destroy the cfg fields,
+       * through in-place modifications.
+       */
+      *initrd = strdup(*initrd);
       parse_name(*initrd, bi->default_part, initrd_device, initrd_part, initrd);
       if (!*initrd_device) {
          *initrd_device = bi->default_device;
