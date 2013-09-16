@@ -19,16 +19,17 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 #include "quik.h"
+#include "prom.h"
 
 #define CMD_LENG  512
 char cbuff[CMD_LENG];
 
-void cmdinit()
+void cmd_init()
 {
    cbuff[0] = 0;
 }
 
-void cmdedit(void (*tabfunc)(boot_info_t *), boot_info_t *bi, int c)
+void cmd_edit(void (*tabfunc)(boot_info_t *), boot_info_t *bi, int c)
 {
    int x;
 
@@ -58,7 +59,7 @@ void cmdedit(void (*tabfunc)(boot_info_t *), boot_info_t *bi, int c)
    return;
 }
 
-void cmdfill(const char *d)
+void cmd_fill(const char *d)
 {
    strncpy(cbuff, d, CMD_LENG);
    cbuff[CMD_LENG - 1] = 0;

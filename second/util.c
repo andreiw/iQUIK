@@ -25,7 +25,7 @@ char *
 chomp(char *s)
 {
    while (*s == ' ') {
-      *s++;
+      s++;
    }
 
    return s;
@@ -216,19 +216,25 @@ strtol(const char *nptr,
    } else
       negative = 0;
 
-   if (base == 16 && s[0] == '0' && (s[1] == 'X') || (s[1] == 'x'))
+   if (base == 16 &&
+       s[0] == '0' &&
+       ((s[1] == 'X') || (s[1] == 'x'))) {
       s += 2;
+   }
 
    /* If BASE is zero, figure it out ourselves.  */
-   if (base == 0)
+   if (base == 0) {
       if (*s == '0') {
          if (s[1] == 'X' || s[1] == 'x') {
             s += 2;
             base = 16;
-         } else
+         } else {
             base = 8;
-      } else
+         }
+      } else {
          base = 10;
+      }
+   }
 
    /* Save the pointer so we can check later if anything happened.  */
    save = s;
@@ -282,12 +288,14 @@ noconv:
       first two characters and '0' and 'x', but the rest are no
       hexadecimal digits.  This is no error case.  We return 0 and
       ENDPTR points to the `x`.  */
-   if (endptr)
-      if (save - nptr >= 2 && tolower (save[-1]) == 'x' && save[-2] == '0')
+   if (endptr) {
+      if (save - nptr >= 2 && tolower (save[-1]) == 'x' && save[-2] == '0') {
          *endptr = (char *) &save[-1];
-      else
+      } else {
          /*  There was no number to convert.  */
          *endptr = (char *) nptr;
+      }
+   }
 
    return 0L;
 }

@@ -21,6 +21,7 @@
 
 #include "quik.h"
 #include "elf.h"
+#include "prom.h"
 #include <layout.h>
 
 #define ADDRMASK 0x0fffffff
@@ -66,6 +67,8 @@ quik_err_t elf_parse(void *load_buf,
    /*
     * AndreiW: This logic needs some review...
     */
+   off = 0;
+   linked_base = 0;
    p = (Elf32_Phdr *) (load_buf + e->e_phoff);
    for (i = 0; i < e->e_phnum; ++i, ++p) {
       if (p->p_type != PT_LOAD || p->p_offset == 0)
@@ -119,7 +122,7 @@ quik_err_t elf_relo(boot_info_t *bi,
        * Entry points to kernel entry.
        */
       prom_ensure_claimed((void *) image->linked_base,
-                          image->text_len, 0);
+                          image->text_len);
       memmove((void *) image->linked_base,
               (void *) (image->buf + image->text_offset),
               image->text_len);

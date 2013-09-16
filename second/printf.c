@@ -18,8 +18,8 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#include <stdarg.h>
 #include "quik.h"
+#include "prom.h"
 #include "file.h"
 
 #define QUIK_ERR_DEF(e, s) s,
@@ -40,7 +40,7 @@ static void printks(char *s)
       s = null_string;
    }
 
-   while (c = *s++) {
+   while ((c = *s++) != '\0') {
       putchar(c);
    }
 }
@@ -70,7 +70,7 @@ static void printknu(unsigned n, int b)
    cp = prbuf;
    do {
       *cp++ = "0123456789ABCDEF"[(int) (n % b)];
-   } while (n = n / b & 0x0FFFFFFF);
+   } while ((n = n / b & 0x0FFFFFFF) != 0);
 
    do {
       putchar (*--cp);
@@ -94,7 +94,7 @@ static void printkns(long n, int b)
    cp = prbuf;
    do {
       *cp++ = "0123456789ABCDEF"[(int) (n % b)];
-   } while (n = n / b & 0x0FFFFFFF);
+   } while ((n = n / b & 0x0FFFFFFF) != 0);
 
    do {
       putchar (*--cp);
@@ -141,7 +141,7 @@ void vprintk(char *fmt, va_list adx)
          printknu((unsigned) va_arg(adx, unsigned),
                   c == 'o' ? 8 : (c == 'u' ? 10 : 16));
       } else if (c == 'i' || c == 'd')  {
-         printknu((long) va_arg(adx, long), 10);
+         printkns((long) va_arg(adx, long), 10);
       } else if (c == 'c') {
          putchar(va_arg(adx, unsigned));
       } else if (c == 's') {

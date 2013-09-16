@@ -22,6 +22,7 @@
 
 #include <layout.h>
 #include "quik.h"
+#include "prom.h"
 
 static char *malloc_ptr = NULL;
 static char *malloc_end = NULL;
@@ -40,7 +41,7 @@ malloc_init()
 }
 
 
-void *malloc (unsigned int size)
+void *malloc(unsigned int size)
 {
    char *caddr;
 

@@ -108,7 +108,6 @@ read_dos_partition(ihandle dev,
 {
    length_t len;
    unsigned i;
-   unsigned vv;
    char blk[SECTOR_SIZE];
    dos_part_t *d;
 

@@ -22,4 +22,4 @@ _start:
 /* Load up an initial stack pointer */
         lis     1,_stack_top@h
         ori     1,1,_stack_top@l
-        b       main
+        b       iquik_main

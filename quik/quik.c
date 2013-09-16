@@ -83,10 +83,9 @@ void read_sb(char *device,         /* IN */
              ssize_t *secsize)     /* OUT - sector size. */
 {
    int fd, part;
-   int offset, maxpart;
+   int maxpart;
    struct mac_partition *mp;
    struct mac_driver_desc *md;
-   char *p;
    char buff[512];
 
    mp = (struct mac_partition *) buff;
@@ -263,7 +262,7 @@ void install_stage(char *device,
 
    off = doff * 512;
    if (verbose) {
-      printf("Installing to offset %zu on '%s'\n", off, device);
+     printf("Installing to offset %ju on '%s'\n", (uintmax_t) off, device);
    }
 
    if (lseek(fd, off, 0) != off) {
@@ -299,7 +298,7 @@ char *find_dev(int number)
 
    strcpy(name, DEVNAME "/");
    p = strchr(name, 0);
-   while (dir = readdir(dp)) {
+   while ((dir = readdir(dp)) != NULL) {
       strcpy(p, dir->d_name);
 
       if (stat(name, &s) < 0) {
@@ -389,9 +388,7 @@ int main(int argc,char **argv)
    char *basedev = NULL;
    char *secondary = DFL_SECONDARY;
    int c;
-   int fd;
    struct stat st1;
-   char buffer[1024];
    int version = 0;
    off_t doff = 0;
    unsigned part_index = 0;

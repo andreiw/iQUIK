@@ -1,6 +1,6 @@
 all:	quik
 
-COPTS = -O
+COPTS = -O -Wall -Werror
 CFLAGS = -I../include $(COPTS)
 
 quik: quik.c

@@ -21,8 +21,8 @@
 
 /* NOT glibc's <setjmp.h> - see note in ./setjmp.h */
 #include "setjmp.h"
-#include <stdarg.h>
 #include "quik.h"
+#include "prom.h"
 
 typedef enum {
    cft_strg, cft_flag, cft_end

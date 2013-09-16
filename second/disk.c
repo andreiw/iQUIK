@@ -52,8 +52,6 @@ void
 disk_init(boot_info_t *bi)
 {
    char *p;
-   ihandle dev;
-   quik_err_t err;
 
    bi->default_device = bi->bootargs;
    word_split(&bi->default_device, &bi->bootargs);

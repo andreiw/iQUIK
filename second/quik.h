@@ -23,6 +23,7 @@
 #define QUIK_QUIK_H
 
 #include <inttypes.h>
+#include <stdarg.h>
 
 #define ALIGN_UP(addr, align) (((addr) + (align) - 1) & (~((align) - 1)))
 #define ALIGN(addr, align) (((addr) - 1) & (~((align) - 1)))
@@ -125,7 +126,9 @@ typedef struct {
    length_t initrd_len;
 } boot_info_t;
 
-void cmdedit(void (*tabfunc)(boot_info_t *), boot_info_t *bi, int c);
+void cmd_init();
+void cmd_edit(void (*tabfunc)(boot_info_t *), boot_info_t *bi, int c);
+void cmd_fill(const char *d);
 
 extern char cbuff[];
 
@@ -147,8 +150,14 @@ void cfg_print_images(void);
 char *cfg_get_default(void);
 
 quik_err_t malloc_init(void);
-void *malloc(unsigned);
+void *malloc(unsigned int size);
+void free(void *);
+void *realloc(void *ptr, unsigned int size);
+
 void spinner(int freq);
+void flush_cache(vaddr_t base, length_t len);
+void vprintk(char *fmt, va_list adx);
+void printk(char *fmt, ...);
 
 uint32_t swab32(uint32_t value);
 uint16_t swab16(uint16_t value);
@@ -169,6 +178,9 @@ int memcmp(const void *s1, const void *s2, length_t n);
 int tolower(int c);
 int strcasecmp(const char *s1, const char *s2);
 void *strdup(char *str);
+int strtol(const char *nptr,
+           char **endptr,
+           int base);
 char *chomp(char *str);
 void word_split(char **linep,
                 char **paramsp);

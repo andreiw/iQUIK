@@ -175,7 +175,6 @@ get_params(boot_info_t *bi,
    int n;
    int end;
    char *endp;
-   quik_err_t err;
    int beg = 0;
    char *label = NULL;
    int timeout = DEFAULT_TIMEOUT;
@@ -233,8 +232,8 @@ get_params(boot_info_t *bi,
 
       printk("\n");
    } else {
-      cmdinit();
-      cmdedit(maintabfunc, bi, c);
+      cmd_init();
+      cmd_edit(maintabfunc, bi, c);
       printk("\n");
 
       if (cbuff[0] == '!') {
@@ -564,11 +563,14 @@ load_config(boot_info_t *bi)
 
 
 /* Here we are launched */
-int main(void *a1, void *a2, void *prom_entry)
+void
+iquik_main(void *a1,
+           void *a2,
+           void *prom_entry)
 {
-   load_state_t image;
    char *params;
    quik_err_t err;
+   load_state_t image;
 
    prom_init(prom_entry, &bi);
    printk("iQUIK OldWorld Bootloader\n");

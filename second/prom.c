@@ -15,7 +15,6 @@
  * Copyright (C) 1996-2005 Paul Mackerras.
  */
 
-#include <stdarg.h>
 #include "quik.h"
 #include "prom.h"
 
@@ -211,7 +210,6 @@ void
 prom_init(void (*pp)(void *),
           boot_info_t *bi)
 {
-   phandle p;
    ihandle oprom;
    char ver[64];
 
@@ -226,15 +224,15 @@ prom_init(void (*pp)(void *),
    }
 
    prom_memory = call_prom("open", 1, 1, "/memory");
-   prom_getprop(prom_chosen, "mmu", &prom_mmu, sizeof(prom_mmu));
-   prom_getprop(prom_chosen, "stdout", &prom_stdout, sizeof(prom_stdout));
-   prom_getprop(prom_chosen, "stdin", &prom_stdin, sizeof(prom_stdin));
+   (void) prom_getprop(prom_chosen, "mmu", &prom_mmu, sizeof(prom_mmu));
+   (void) prom_getprop(prom_chosen, "stdout", &prom_stdout, sizeof(prom_stdout));
+   (void) prom_getprop(prom_chosen, "stdin", &prom_stdin, sizeof(prom_stdin));
    prom_options = call_prom("finddevice", 1, 1, "/options");
    printk("\n");
 
    ver[0] = '\0';
    oprom = call_prom("finddevice", 1, 1, "/openprom");
-   prom_getprop(oprom, "model", ver, sizeof(ver));
+   (void) prom_getprop(oprom, "model", ver, sizeof(ver));
    if (strcmp(ver, "Open Firmware, 1.0.5") == 0) {
       prom_flags |= PROM_CLAIM_WORK_AROUND;
    } else if (strcmp(ver, "Open Firmware, 2.0.1") == 0) {
@@ -264,7 +262,7 @@ void
 prom_get_chosen(char *name, char *buf, int buflen)
 {
    buf[0] = 0;
-   prom_getprop(prom_chosen, name, buf, buflen);
+   (void) prom_getprop(prom_chosen, name, buf, buflen);
 }
 
 
@@ -274,8 +272,9 @@ prom_get_options(char *name,
                  int buflen)
 {
    buf[0] = 0;
-   if (prom_options != (void *) -1)
-      prom_getprop(prom_options, name, buf, buflen);
+   if (prom_options != (void *) -1) {
+      (void) prom_getprop(prom_options, name, buf, buflen);
+   }
 }
 
 
@@ -327,7 +326,7 @@ prom_claim(void *virt,
 {
    int ret;
    void *result;
-   unsigned align = 1;
+   unsigned align = 0;
 
    if (prom_flags & PROM_CLAIM_WORK_AROUND) {
 
@@ -392,7 +391,7 @@ prom_ensure_claimed(void *virt,
 {
    vaddr_t addr = (vaddr_t) virt;
 
-   for (addr; addr < (vaddr_t) virt + size; addr += SIZE_4K) {
+   for (; addr < (vaddr_t) virt + size; addr += SIZE_4K) {
       prom_claim((void *) addr, SIZE_4K);
    }
 }
