@@ -45,8 +45,9 @@ typedef struct {
   vaddr_t  entry;
 } load_state_t;
 
-#define QUIK_ERR_LIST \
+#define QUIK_ERR_LIST                                                   \
    QUIK_ERR_DEF(ERR_NONE, "no error")                                   \
+   QUIK_ERR_DEF(ERR_NOT_READY, "operation should be retried")           \
    QUIK_ERR_DEF(ERR_OF_CLAIM, "claim failed")                           \
    QUIK_ERR_DEF(ERR_DEV_OPEN, "cannot open device")                     \
    QUIK_ERR_DEF(ERR_DEV_SHORT_READ, "short read on device")             \
@@ -56,15 +57,16 @@ typedef struct {
    QUIK_ERR_DEF(ERR_PART_NOT_FOUND, "partition not found")              \
    QUIK_ERR_DEF(ERR_PART_BEYOND, "access beyond partition size")        \
    QUIK_ERR_DEF(ERR_FS_OPEN, "cannot open volume as file system")       \
+   QUIK_ERR_DEF(ERR_FS_PATH, "bad path")                                \
    QUIK_ERR_DEF(ERR_FS_NOT_FOUND, "file not found")                     \
    QUIK_ERR_DEF(ERR_FS_NOT_EXT2, "FS is not ext2")                      \
    QUIK_ERR_DEF(ERR_FS_CORRUPT, "FS is corrupted")                      \
    QUIK_ERR_DEF(ERR_FS_LOOP, "symlink loop detected")                   \
-   QUIK_ERR_DEF(ERR_FS_TOO_BIG, "file is too large to be loaded")       \
    QUIK_ERR_DEF(ERR_ELF_NOT, "invalid kernel image")                    \
    QUIK_ERR_DEF(ERR_ELF_WRONG, "invalid kernel architecture")           \
    QUIK_ERR_DEF(ERR_ELF_NOT_LOADABLE, "not a loadable image")           \
    QUIK_ERR_DEF(ERR_KERNEL_RETURNED, "kernel returned")                 \
+   QUIK_ERR_DEF(ERR_KERNEL_OLD_BIG, "pre-2.4 kernel too large ")        \
    QUIK_ERR_DEF(ERR_NO_MEM, "malloc failed")                            \
    QUIK_ERR_DEF(ERR_INVALID, "invalid error, likely a bug")             \
 
@@ -119,13 +121,24 @@ typedef struct {
     * Initrd location, here because it might be needed by
     * PROM shimming.
     */
-   void *initrd_base;
+   vaddr_t initrd_base;
    length_t initrd_len;
 } boot_info_t;
 
 void cmdedit(void (*tabfunc)(boot_info_t *), boot_info_t *bi, int c);
 
 extern char cbuff[];
+
+quik_err_t elf_parse(void *load_buf,
+                     length_t load_buf_len,
+                     load_state_t *image);
+quik_err_t elf_relo(boot_info_t *bi,
+                    load_state_t *image);
+quik_err_t elf_boot(boot_info_t *bi,
+                    load_state_t *image,
+                    vaddr_t initrd_base,
+                    length_t initrd_len,
+                    char *params);
 
 int cfg_parse(char *cfg_file, char *buff, int len);
 char *cfg_get_strg(char *image, char *item);
@@ -155,7 +168,9 @@ void *memmove(void *dest, const void *src, length_t n);
 int memcmp(const void *s1, const void *s2, length_t n);
 int tolower(int c);
 int strcasecmp(const char *s1, const char *s2);
-void * strdup(char *str);
+void *strdup(char *str);
 char *chomp(char *str);
+void word_split(char **linep,
+                char **paramsp);
 
 #endif /* QUIK_QUIK_H */

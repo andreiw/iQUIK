@@ -36,83 +36,13 @@
 static boot_info_t bi;
 
 #define DEFAULT_TIMEOUT -1
+#define PROMPT "boot: "
 
 void maintabfunc(boot_info_t *bi)
 {
    if (bi->flags & CONFIG_VALID) {
       cfg_print_images();
-      printk("boot: %s", cbuff);
-   }
-}
-
-
-void parse_name(char *imagename,
-                int defpart,
-                char **device,
-                unsigned *part,
-                char **kname)
-{
-   int n;
-   char *endp;
-
-   imagename = chomp(imagename);
-
-   *kname = strchr(imagename, ':');
-   if (!*kname) {
-      *kname = imagename;
-      *device = 0;
-   } else {
-      **kname = 0;
-      (*kname)++;
-      *device = imagename;
-   }
-
-   n = strtol(*kname, &endp, 0);
-   if (endp != *kname) {
-      *part = n;
-      *kname = endp;
-   } else {
-      *part = defpart;
-   }
-
-   /* Path */
-   if (**kname != '/') {
-      *kname = 0;
-   }
-}
-
-
-void
-word_split(char **linep, char **paramsp)
-{
-   char *p;
-
-   *paramsp = "\0";
-   p = *linep;
-
-   if (p == 0) {
-      return;
-   }
-
-   p = chomp(p);
-
-   if (*p == 0) {
-      *linep = NULL;
-      return;
-   }
-
-   *linep = p;
-
-   while (*p != 0 && *p != ' ') {
-      ++p;
-   }
-
-   while (*p == ' ') {
-      *p++ = 0;
-   }
-
-   if (*p != 0) {
-      *paramsp = p;
+      printk(PROMPT"%s", cbuff);
    }
 }
 
@@ -191,26 +121,25 @@ void
 command_ls(boot_info_t *bi,
            char *args)
 {
-   char *device;
-   unsigned part;
+   path_t *path;
    quik_err_t err;
-   char *path;
 
-   parse_name(args, bi->default_part, &device, &part, &path);
-   if (device == NULL) {
-      device = bi->default_device;
-   }
-
-   if (path == NULL) {
-      path = "/";
-   }
-
-   printk("Listing '%s:%u%s'\n", device, part, path);
-   err = list_files(device, part, path);
+try:
+   err = file_path(args, bi->default_device,
+                   bi->default_part, &path);
    if (err != ERR_NONE) {
-      printk("Error listing '%s:%u%s': %r\n",
-             device, part, path, err);
+      args = "/";
+      goto try;
    }
+
+   printk("Listing '%P'\n", path);
+   err = file_ls(path);
+   if (err != ERR_NONE) {
+      printk("Error listing '%P': %r\n",
+             path, err);
+   }
+
+   free(path);
 }
 
 
@@ -232,41 +161,36 @@ bang_commands(boot_info_t *bi,
 }
 
 
-/*
- * FIXME: refactor me.
- */
-int get_params(boot_info_t *bi,
-               char **kname,
-               char **kern_device,
-               unsigned *kern_part,
-               char **initrd,
-               char **initrd_device,
-               unsigned *initrd_part,
-               char **params)
+quik_err_t
+get_params(boot_info_t *bi,
+           char **kernel,
+           char **initrd,
+           char **params,
+           unsigned *part,
+           char **device)
 {
-   char *p, *q, *endp;
-   int c, n;
-   int beg = 0, end;
+   char *p;
+   char *q;
+   int c;
+   int n;
+   int end;
+   char *endp;
    quik_err_t err;
+   int beg = 0;
    char *label = NULL;
    int timeout = DEFAULT_TIMEOUT;
+
+   *part = bi->default_part;
+   *device = bi->default_device;
 
    if ((bi->flags & TRIED_AUTO) == 0) {
       bi->flags ^= TRIED_AUTO;
       *params = bi->bootargs;
-      *kname = *params;
+      *kernel = *params;
 
-      /*
-       * AndreiW:
-       *
-       * FIXME -
-       * word_split has a screwy interface,
-       * where *params could become "\0", while
-       * *kname could become NULL. Ouch.
-       */
-      word_split(kname, params);
-      if (!*kname) {
-         *kname = cfg_get_default();
+      word_split(kernel, params);
+      if (!*kernel) {
+         *kernel = cfg_get_default();
 
          /*
           * Timeout only makes sense
@@ -286,7 +210,7 @@ int get_params(boot_info_t *bi,
       }
    }
 
-   printk("boot: ");
+   printk(PROMPT);
    c = -1;
    if (timeout != -1) {
       beg = get_ms();
@@ -302,7 +226,7 @@ int get_params(boot_info_t *bi,
    }
 
    if (c == '\n') {
-      printk("%s", *kname);
+      printk("%s", *kernel);
       if (*params) {
          printk(" %s", *params);
       }
@@ -315,47 +239,31 @@ int get_params(boot_info_t *bi,
 
       if (cbuff[0] == '!') {
          bang_commands(bi, cbuff + 1);
-         *kname = NULL;
-         return 0;
+         *kernel = NULL;
+         return ERR_NOT_READY;
       }
 
-      *kname = cbuff;
-      word_split(kname, params);
+      *kernel = cbuff;
+      word_split(kernel, params);
    }
 
    if (bi->flags & CONFIG_VALID) {
-      if(cfg_get_strg(0, "device") != NULL) {
-         bi->default_device = cfg_get_strg(0, "device");
-      }
-
-      p = cfg_get_strg(0, "partition");
-      if (p) {
-         n = strtol(p, &endp, 10);
-         if (endp != p && *endp == 0)
-            bi->default_part = n;
-      }
-
-      p = cfg_get_strg(0, "pause-message");
-      if (p) {
-         bi->pause_message = p;
-      }
-
       *initrd = cfg_get_strg(0, "initrd");
-      p = cfg_get_strg(*kname, "image");
+      p = cfg_get_strg(*kernel, "image");
       if (p && *p) {
-         label = *kname;
-         *kname = p;
+         label = *kernel;
+         *kernel = p;
 
          p = cfg_get_strg(label, "device");
          if (p) {
-            bi->default_device = p;
+            *device = p;
          }
 
          p = cfg_get_strg(label, "partition");
          if (p) {
             n = strtol(p, &endp, 10);
             if (endp != p && *endp == 0) {
-               bi->default_part = n;
+               *part = n;
             }
          }
 
@@ -374,18 +282,13 @@ int get_params(boot_info_t *bi,
       }
    }
 
-   /*
-    * If loading fails we don't want to destroy the cfg fields,
-    * through in-place modifications.
-    */
-   *kname = strdup(*kname);
-   parse_name(*kname, bi->default_part, kern_device, kern_part, kname);
-   if (!*kern_device) {
-      *kern_device = bi->default_device;
+   if (*kernel == NULL) {
+      printk("<TAB> for list of bootable images, or !help\n");
+      return ERR_NOT_READY;
    }
 
    /*
-    * If we manually enterred kernel path, the initrd could
+    * If we manually entered kernel path, the initrd could
     * be following in the param list...
     */
    if (label == NULL) {
@@ -403,27 +306,140 @@ int get_params(boot_info_t *bi,
       }
    }
 
-   /*
-    * In either case the initrd path could point to a different device...
-    */
-   if (*initrd) {
+   return ERR_NONE;
+}
 
-      /*
-       * If loading fails we don't want to destroy the cfg fields,
-       * through in-place modifications.
-       */
-      *initrd = strdup(*initrd);
-      parse_name(*initrd, bi->default_part, initrd_device, initrd_part, initrd);
-      if (!*initrd_device) {
-         *initrd_device = bi->default_device;
+
+quik_err_t
+get_load_paths(boot_info_t *bi,
+               path_t **kernel,
+               path_t **initrd,
+               char **params)
+{
+   quik_err_t err;
+   unsigned current_part;
+   char *kernel_spec = NULL;
+   char *initrd_spec = NULL;
+   char *current_device = NULL;
+
+   err = get_params(bi, &kernel_spec, &initrd_spec,
+                    params, &current_part, &current_device);
+   if (err != ERR_NONE) {
+      return err;
+   }
+
+   err = file_path(kernel_spec, current_device, current_part, kernel);
+   if (err != ERR_NONE) {
+      printk("Error parsing kernel path '%s': %r\n", kernel_spec, err);
+      return err;
+   }
+
+   if (initrd_spec != NULL) {
+      err = file_path(initrd_spec, current_device, current_part, initrd);
+      if (err != ERR_NONE) {
+         printk("Error parsing initrd path '%s': %r\n", initrd_spec, err);
+         free(kernel);
+         return err;
       }
    }
 
-   if (*kname == NULL) {
-      printk("<TAB> for list of bootable images, or !help\n");
+   return ERR_NONE;
+}
+
+
+quik_err_t
+load_image(path_t *path,
+           vaddr_t *where,
+           length_t *len)
+{
+   quik_err_t err;
+
+   printk("Loading '%P'\n", path);
+   err = file_len(path, len);
+   if (err != ERR_NONE) {
+      printk("Error fetching size for '%P': %r\n",
+             path, err);
+      return err;
    }
 
-   return 0;
+   *where = (vaddr_t) prom_claim_chunk((void *) *where, *len);
+   if (*where == (vaddr_t) -1) {
+      printk("Couldn't claim 0x%x bytes to load '%P'\n", *len, path);
+      return ERR_NO_MEM;
+   }
+
+   err = file_load(path, (void *) *where);
+   if (err != ERR_NONE) {
+      printk("Error loading '%P': %r\n", path, err);
+      prom_release((void *) *where, *len);
+      return err;
+   }
+
+   return ERR_NONE;
+}
+
+
+quik_err_t
+try_load_loop(boot_info_t *bi,
+              load_state_t *image,
+              char **params)
+{
+   quik_err_t err;
+   vaddr_t kernel_buf = 0;
+   length_t kernel_len;
+   vaddr_t initrd_buf = 0;
+   length_t initrd_len;
+   path_t *kernel_path = NULL;
+   path_t *initrd_path = NULL;
+
+   err = get_load_paths(bi, &kernel_path, &initrd_path, params);
+   if (err != ERR_NONE) {
+      return err;
+   }
+
+   kernel_buf = LOAD_BASE;
+   err = load_image(kernel_path, &kernel_buf, &kernel_len);
+   if (err != ERR_NONE) {
+      kernel_buf = 0;
+      goto out;
+   }
+
+   err = elf_parse((void *) kernel_buf, kernel_len, image);
+   if (err != ERR_NONE) {
+      printk("Error ELF-parsing '%P': %r\n", kernel_path, err);
+      goto out;
+   }
+
+   if (!initrd_path) {
+      bi->initrd_base = 0;
+      bi->initrd_len = 0;
+      return ERR_NONE;
+   }
+
+   initrd_buf = kernel_buf + kernel_len;
+   err = load_image(initrd_path, &initrd_buf, &initrd_len);
+   if (err != ERR_NONE) {
+      goto out;
+   }
+
+   bi->initrd_base = initrd_buf;
+   bi->initrd_len = initrd_len;
+   return ERR_NONE;
+
+out:
+   if (kernel_buf) {
+      prom_release((void *) kernel_buf, kernel_len);
+   }
+
+   if (initrd_path) {
+      free(initrd_path);
+   }
+
+   if (kernel_path) {
+      free(kernel_path);
+   }
+
+   return err;
 }
 
 
@@ -433,48 +449,37 @@ int get_params(boot_info_t *bi,
 static void
 print_message_file(boot_info_t *bi, char *p)
 {
-   char *q, *endp;
    char *message;
-   int n, defpart = bi->default_part;
-   char *device, *kname;
-   int part;
+   char *defdev;
    length_t len;
    quik_err_t err;
+   path_t *path = NULL;
 
-   q = cfg_get_strg(0, "partition");
-   if (q) {
-      n = strtol(q, &endp, 10);
-      if (endp != q && *endp == 0) {
-         defpart = n;
-      }
+   defdev = cfg_get_strg(0, "device");
+   if (!defdev) {
+      defdev = bi->default_device;
    }
 
-   parse_name(p, defpart, &device, &part, &kname);
-   if (kname == NULL) {
-      return;
-   }
-
-   if (!device) {
-      device = cfg_get_strg(0, "device");
-   }
-
-   if (!device) {
-      device = bi->default_device;
-   }
-
-   err = length_file(device, part, kname, &len);
+   err = file_path(p, defdev, bi->default_part, &path);
    if (err != ERR_NONE) {
       return;
    }
 
+   err = file_len(path, &len);
+   if (err != ERR_NONE) {
+      free(path);
+      return;
+   }
+
    message = malloc(len);
-   err = load_file(device, part, kname, message, message + len, &len);
+   err = file_load(path, message);
    if (err == ERR_NONE) {
       message[len] = 0;
       printk("\n%s", message);
    }
 
    free(message);
+   free(path);
 }
 
 
@@ -484,7 +489,10 @@ load_config(boot_info_t *bi)
    quik_err_t err;
    length_t len;
    char *buf;
+   char *endp;
+   unsigned n;
    char *p;
+   path_t path;
 
    if (!bi->default_device ||
        bi->default_part == 0) {
@@ -492,15 +500,12 @@ load_config(boot_info_t *bi)
       return ERR_NONE;
    }
 
-   printk("Configuration file @ %s:%d%s\n",
-          bi->default_device,
-          bi->default_part,
-          bi->config_file);
+   path.device = bi->default_device;
+   path.part = bi->default_part;
+   path.path = bi->config_file;
 
-   err = length_file(bi->default_device,
-                     bi->default_part,
-                     bi->config_file,
-                     &len);
+   printk("Configuration file @ '%P'\n", &path);
+   err = file_len(&path, &len);
    if (err != ERR_NONE) {
       return err;
    }
@@ -510,20 +515,15 @@ load_config(boot_info_t *bi)
       return ERR_NO_MEM;
    }
 
-   err = load_file(bi->default_device,
-                   bi->default_part,
-                   bi->config_file,
-                   buf,
-                   buf + len,
-                   &len);
+   err = file_load(&path, buf);
    if (err != ERR_NONE) {
-      printk("\nCouldn't load '%s': %r\n", bi->config_file, err);
+      printk("\nCouldn't load '%P': %r\n", &path, err);
       free(buf);
       return err;
    }
 
    if (cfg_parse(bi->config_file, buf, len) < 0) {
-      printk ("Syntax error or read error in '%s'\n", bi->config_file);
+      printk ("Syntax error or read error in '%P'\n", &path);
    }
 
    free(buf);
@@ -538,6 +538,22 @@ load_config(boot_info_t *bi)
       printk("%s\n", p);
    }
 
+   if(cfg_get_strg(0, "device") != NULL) {
+      bi->default_device = cfg_get_strg(0, "device");
+   }
+
+   p = cfg_get_strg(0, "partition");
+   if (p) {
+      n = strtol(p, &endp, 10);
+      if (endp != p && *endp == 0)
+         bi->default_part = n;
+   }
+
+   p = cfg_get_strg(0, "pause-message");
+   if (p) {
+      bi->pause_message = p;
+   }
+
    p = cfg_get_strg(0, "message");
    if (p) {
       print_message_file(bi, p);
@@ -550,15 +566,8 @@ load_config(boot_info_t *bi)
 /* Here we are launched */
 int main(void *a1, void *a2, void *prom_entry)
 {
-   length_t image_len;
-   char *kname, *kern_device;
-   char *initrd, *initrd_device;
-   unsigned kern_part, initrd_part;
-   char *params;
    load_state_t image;
-
-   char *load_buf;
-   char *load_buf_end;
+   char *params;
    quik_err_t err;
 
    prom_init(prom_entry, &bi);
@@ -573,88 +582,12 @@ int main(void *a1, void *a2, void *prom_entry)
    load_config(&bi);
 
    for (;;) {
-      quik_err_t err;
+      params = NULL;
 
-      get_params(&bi,
-                 &kname, &kern_device, &kern_part,
-                 &initrd, &initrd_device, &initrd_part,
-                 &params);
-      if (!kname) {
-         continue;
-      }
-
-      printk("Loading '%s:%u%s'\n", kern_device, kern_part, kname);
-      err = length_file(kern_device, kern_part, kname, &image_len);
-      if (err != ERR_NONE) {
-         printk("Error fetching size for '%s': %r\n",
-                kname, err);
-         continue;
-      }
-
-      if ((image_len > SECOND_BASE) &&
-          (bi.flags & BOOT_PRE_2_4)) {
-         printk("Pre-2.4 kernel '%s' too large to be loaded\n", kname);
-         continue;
-      }
-
-      load_buf = prom_claim_chunk(LOAD_BASE, image_len);
-      if (load_buf == (char *) -1) {
-         printk("Couldn't allocate memory to load kernel\n");
-         continue;
-      }
-      load_buf_end = load_buf + image_len;
-
-      err = load_file(kern_device, kern_part, kname,
-                      load_buf, load_buf_end,
-                      &image_len);
-
-      if (err != ERR_NONE) {
-         printk("\nCouldn't load '%s': %r\n", kname, err);
-         continue;
-      }
-
-      err = elf_parse(load_buf, image_len, &image);
-      if (err != ERR_NONE) {
-         printk("Error parsing '%s': %r\n", kname, err);
-         continue;
-      }
-
-      if (!initrd) {
-         bi.initrd_base = NULL;
-         bi.initrd_len = 0;
+      err = try_load_loop(&bi, &image, &params);
+      if (err == ERR_NONE) {
          break;
       }
-
-      printk("Loading '%s:%u%s'\n", initrd_device, initrd_part, initrd);
-
-      err = length_file(initrd_device, initrd_part, initrd, &bi.initrd_len);
-      if (err != ERR_NONE) {
-         printk("Error fetching size for '%s': %r\n", initrd, err);
-         continue;
-      }
-
-      if ((void *) load_buf >= LOAD_BASE) {
-         bi.initrd_base = load_buf_end;
-      } else {
-         bi.initrd_base = LOAD_BASE;
-      }
-
-      bi.initrd_base = prom_claim_chunk((void *) bi.initrd_base, bi.initrd_len);
-      if (bi.initrd_base == (void *) -1) {
-         printk("Claim failed for %u bytes\n", bi.initrd_len);
-         continue;
-      }
-
-      err = load_file(initrd_device, initrd_part, initrd,
-                      bi.initrd_base,
-                      bi.initrd_base + bi.initrd_len,
-                      &bi.initrd_len);
-      if (err != ERR_NONE) {
-         printk("\nCouldn't load '%s': %r\n", initrd, err);
-         continue;
-      }
-
-      break;
    }
 
    err = elf_relo(&bi, &image);

@@ -21,6 +21,7 @@
 
 #include "quik.h"
 #include "elf.h"
+#include <layout.h>
 
 #define ADDRMASK 0x0fffffff
 
@@ -107,6 +108,9 @@ quik_err_t elf_relo(boot_info_t *bi,
                     load_state_t *image)
 {
    if (bi->flags & BOOT_PRE_2_4) {
+      if (image->text_len > SECOND_BASE) {
+         return ERR_KERNEL_OLD_BIG;
+      }
 
       /*
        * 2.2 kernels have to execute at PA = 0x0 on the PowerMac.

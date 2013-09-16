@@ -28,4 +28,4 @@
 /*
  * Anything loaded by iquik gets put here.
  */
-#define LOAD_BASE       ((void *) 0x800000)
+#define LOAD_BASE       0x800000

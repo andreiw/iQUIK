@@ -59,20 +59,18 @@ open_ext2(char *device,
 
 
 quik_err_t
-length_file(char *device,
-            int partno,
-            char *filename,
-            length_t *len)
+file_len(path_t *path,
+         length_t *len)
 {
    quik_err_t err;
    *len = 0;
 
-   err = open_ext2(device, partno, &part);
+   err = open_ext2(path->device, path->part, &part);
    if (err != ERR_NONE) {
       return err;
    }
 
-   err = ext2fs_open(filename, len);
+   err = ext2fs_open(path->path, len);
    if (err != ERR_NONE) {
       return err;
    }
@@ -82,52 +80,83 @@ length_file(char *device,
 
 
 quik_err_t
-load_file(char *device,
-          int partno,
-          char *filename,
-          void *buffer,
-          void *limit,
-          length_t *len)
+file_load(path_t *path,
+          void *buffer)
 {
    length_t size;
    quik_err_t err;
 
-   err = open_ext2(device, partno, &part);
+   err = open_ext2(path->device, path->part, &part);
    if (err != ERR_NONE) {
       return err;
    }
 
-   err = ext2fs_open(filename, &size);
+   err = ext2fs_open(path->path, &size);
    if (err != ERR_NONE) {
       return err;
    }
 
-   if (buffer + size > limit) {
-      err = ERR_FS_TOO_BIG;
-      goto out;
-   }
-
-   err = ext2fs_read(buffer, size);
-   if (err == ERR_NONE) {
-     *len = size;
-   }
-
-out:
-   return err;
+   return ext2fs_read(buffer, size);
 }
 
 
 quik_err_t
-list_files(char *device,
-           int partno,
-           char *path)
+file_ls(path_t *path)
 {
    quik_err_t err;
 
-   err = open_ext2(device, partno, &part);
+   err = open_ext2(path->device, path->part, &part);
    if (err != ERR_NONE) {
       return err;
    }
 
-   return ext2fs_ls(path);
+   return ext2fs_ls(path->path);
+}
+
+
+quik_err_t
+file_path(char *pathspec,
+          char *default_device,
+          unsigned default_part,
+          path_t **path)
+{
+   int n;
+   char *endp;
+   unsigned slen = strlen(pathspec) + 1;
+   path_t *p = (path_t *) malloc(slen + sizeof(path_t));
+
+   if (p == NULL) {
+      return ERR_NO_MEM;
+   }
+
+   memcpy((void *) (p + 1), pathspec, slen);
+   pathspec = (char *) (p + 1);
+   pathspec = chomp(pathspec);
+
+   p->path = strchr(pathspec, ':');
+   if (!p->path) {
+      p->path = pathspec;
+      p->device = default_device;
+   } else {
+      p->path[0] = '\0';
+      p->path++;
+      p->device = pathspec;
+   }
+
+   n = strtol(p->path, &endp, 0);
+   if (endp != p->path) {
+      p->part = n;
+      p->path = endp;
+   } else {
+      p->part = default_part;
+   }
+
+   /* Path */
+   if (p->path[0] != '/') {
+      free(p);
+      return ERR_FS_PATH;
+   }
+
+   *path = p;
+   return ERR_NONE;
 }

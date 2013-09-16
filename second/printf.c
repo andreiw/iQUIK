@@ -20,6 +20,7 @@
 
 #include <stdarg.h>
 #include "quik.h"
+#include "file.h"
 
 #define QUIK_ERR_DEF(e, s) s,
 static char *errors[] = {
@@ -33,11 +34,17 @@ static char *errors[] = {
 static void printks(char *s)
 {
    char c;
+   char *null_string = "<NULL>";
+
+   if (s == NULL) {
+      s = null_string;
+   }
 
    while (c = *s++) {
       putchar(c);
    }
 }
+
 
 /*
  * Print an error.
@@ -50,6 +57,7 @@ static void printkr(quik_err_t err)
       printks(errors[ERR_INVALID]);
    }
 }
+
 
 /*
  * Print an unsigned integer in base b, avoiding recursion.
@@ -93,10 +101,27 @@ static void printkns(long n, int b)
    } while (cp > prbuf);
 }
 
+
+/*
+ * Print a path.
+ */
+static void printkp(path_t *path)
+{
+   if (path == NULL) {
+      printks(NULL);
+   }
+
+   printks(path->device);
+   putchar(':');
+   printknu(path->part, 10);
+   printks(path->path);
+}
+
+
 void vprintk(char *fmt, va_list adx)
 {
-   char *n = "<NULL>";
    quik_err_t err;
+   path_t *path;
    char *s;
    char c;
 
@@ -121,14 +146,13 @@ void vprintk(char *fmt, va_list adx)
          putchar(va_arg(adx, unsigned));
       } else if (c == 's') {
          s = va_arg(adx, char *);
-         if (s) {
-            printks(s);
-         } else {
-            printks(n);
-         }
+         printks(s);
       } else if (c == 'r') {
          err = va_arg(adx, quik_err_t);
          printkr(err);
+      } else if (c == 'P') {
+         path = va_arg(adx, path_t *);
+         printkp(path);
       } else if (c == 'p') {
          s = va_arg(adx, void *);
          if (s) {
@@ -136,7 +160,7 @@ void vprintk(char *fmt, va_list adx)
             putchar('x');
             printknu((long) s, 16);
          } else {
-            printks(n);
+            printks(NULL);
          }
       }
    }
@@ -144,7 +168,7 @@ void vprintk(char *fmt, va_list adx)
 
 /*
  * Scaled down version of C Library printf.
- * Only %c %s %u %d %i %u %o %x %p %r are recognized.
+ * Only %c %s %u %d %i %u %o %x %p %r %P are recognized.
  */
 
 void printk(char *fmt,...)

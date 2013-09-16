@@ -32,6 +32,50 @@ chomp(char *s)
 }
 
 
+/*
+ * AndreiW:
+ *
+ * FIXME -
+ * word_split has a screwy interface,
+ * where *params could become "\0", while
+ * *kernel could become NULL. Ouch.
+ */
+void
+word_split(char **linep,
+           char **paramsp)
+{
+   char *p;
+
+   *paramsp = "\0";
+   p = *linep;
+
+   if (p == 0) {
+      return;
+   }
+
+   p = chomp(p);
+
+   if (*p == 0) {
+      *linep = NULL;
+      return;
+   }
+
+   *linep = p;
+
+   while (*p != 0 && *p != ' ') {
+      ++p;
+   }
+
+   while (*p == ' ') {
+      *p++ = 0;
+   }
+
+   if (*p != 0) {
+      *paramsp = p;
+   }
+}
+
+
 int
 tolower(int c)
 {

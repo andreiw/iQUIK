@@ -21,20 +21,27 @@
 #ifndef QUIK_FS_H
 #define QUIK_FS_H
 
-quik_err_t length_file(char *device,
-                       int partno,
-                       char *filename,
-                       length_t *len);
+typedef struct {
+   char *device;
+   unsigned part;
+   char *path;
+} path_t;
 
-quik_err_t load_file(char *device,
-                     int partno,
-                     char *filename,
-                     void *buffer,
-                     void *limit,
-                     length_t *len);
+quik_err_t
+file_path(char *pathspec,
+          char *default_device,
+          unsigned default_part,
+          path_t **path);
 
-quik_err_t list_files(char *device,
-                      int partno,
-                      char *path);
+quik_err_t
+file_len(path_t *path,
+         length_t *len);
+
+quik_err_t
+file_load(path_t *path,
+          void *buffer);
+
+quik_err_t
+file_ls(path_t *path);
 
 #endif /* QUIK_FS_H */
