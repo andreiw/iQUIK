@@ -307,16 +307,29 @@ set_bootargs(char *params)
 }
 
 
+void
+prom_release(void *virt,
+             unsigned int size)
+{
+   if (prom_flags & PROM_CLAIM_WORK_AROUND) {
+      call_prom("call-method", 4, 0, "unmap", prom_mmu, size, virt);
+      call_prom("call-method", 4, 0, "release", prom_mmu, size, virt);
+      call_prom("call-method", 4, 0, "release", prom_memory, size, virt);
+   }
+
+   call_prom("release", 2, 0, virt, size);
+}
+
+
 void *
 prom_claim(void *virt,
-           unsigned int size,
-           unsigned int align)
+           unsigned int size)
 {
    int ret;
    void *result;
+   unsigned align = 1;
 
-   if ((prom_flags & PROM_CLAIM_WORK_AROUND) &&
-       align == 0) {
+   if (prom_flags & PROM_CLAIM_WORK_AROUND) {
 
       /*
        * Old OF requires we claim physical and virtual separately
@@ -356,15 +369,14 @@ prom_claim(void *virt,
  */
 void *
 prom_claim_chunk(void *virt,
-                 unsigned int size,
-                 unsigned int align)
+                 unsigned int size)
 {
   void *found, *addr;
 
   for (addr = (void *) ALIGN_UP((unsigned) virt, SIZE_1M);
        addr <= (void*) PROM_CLAIM_MAX_ADDR;
        addr = (void *) ((unsigned) addr + SIZE_1M)) {
-     found = prom_claim(addr, size, align);
+     found = prom_claim(addr, size);
      if (found != (void *)-1) {
         return found;
      }
@@ -381,6 +393,6 @@ prom_ensure_claimed(void *virt,
    vaddr_t addr = (vaddr_t) virt;
 
    for (addr; addr < (vaddr_t) virt + size; addr += SIZE_4K) {
-      prom_claim(addr, SIZE_4K, 1);
+      prom_claim((void *) addr, SIZE_4K);
    }
 }

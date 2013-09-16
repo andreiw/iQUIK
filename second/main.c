@@ -450,29 +450,107 @@ print_message_file(boot_info_t *bi, char *p)
    }
 
    parse_name(p, defpart, &device, &part, &kname);
-   if (kname) {
-      if (!device) {
-         device = cfg_get_strg(0, "device");
-      }
-
-      if (!device) {
-         device = bi->default_device;
-      }
-
-      message = LOW_BASE;
-      err = load_file(device, part, kname, LOW_BASE, LOW_END, &len);
-      if (err == ERR_NONE) {
-         message[len] = 0;
-         printk("\n%s", message);
-      }
+   if (kname == NULL) {
+      return;
    }
+
+   if (!device) {
+      device = cfg_get_strg(0, "device");
+   }
+
+   if (!device) {
+      device = bi->default_device;
+   }
+
+   err = length_file(device, part, kname, &len);
+   if (err != ERR_NONE) {
+      return;
+   }
+
+   message = malloc(len);
+   err = load_file(device, part, kname, message, message + len, &len);
+   if (err == ERR_NONE) {
+      message[len] = 0;
+      printk("\n%s", message);
+   }
+
+   free(message);
+}
+
+
+quik_err_t
+load_config(boot_info_t *bi)
+{
+   quik_err_t err;
+   length_t len;
+   char *buf;
+   char *p;
+
+   if (!bi->default_device ||
+       bi->default_part == 0) {
+      printk("Skipping loading configuration file due to missing or invalid configuration\n");
+      return ERR_NONE;
+   }
+
+   printk("Configuration file @ %s:%d%s\n",
+          bi->default_device,
+          bi->default_part,
+          bi->config_file);
+
+   err = length_file(bi->default_device,
+                     bi->default_part,
+                     bi->config_file,
+                     &len);
+   if (err != ERR_NONE) {
+      return err;
+   }
+
+   buf = malloc(len);
+   if (buf == NULL) {
+      return ERR_NO_MEM;
+   }
+
+   err = load_file(bi->default_device,
+                   bi->default_part,
+                   bi->config_file,
+                   buf,
+                   buf + len,
+                   &len);
+   if (err != ERR_NONE) {
+      printk("\nCouldn't load '%s': %r\n", bi->config_file, err);
+      free(buf);
+      return err;
+   }
+
+   if (cfg_parse(bi->config_file, buf, len) < 0) {
+      printk ("Syntax error or read error in '%s'\n", bi->config_file);
+   }
+
+   free(buf);
+   bi->flags |= CONFIG_VALID;
+   p = cfg_get_strg(0, "init-code");
+   if (p) {
+      call_prom("interpret", 1, 1, p);
+   }
+
+   p = cfg_get_strg(0, "init-message");
+   if (p) {
+      printk("%s\n", p);
+   }
+
+   p = cfg_get_strg(0, "message");
+   if (p) {
+      print_message_file(bi, p);
+   }
+
+   return ERR_NONE;
 }
 
 
 /* Here we are launched */
 int main(void *a1, void *a2, void *prom_entry)
 {
-   length_t config_len, image_len;
+   length_t image_len;
    char *kname, *kern_device;
    char *initrd, *initrd_device;
    unsigned kern_part, initrd_part;
@@ -487,56 +565,12 @@ int main(void *a1, void *a2, void *prom_entry)
    printk("iQUIK OldWorld Bootloader\n");
    printk("Copyright (C) 2013 Andrei Warkentin <andrey.warkentin@gmail.com>\n");
    if (bi.flags & SHIM_OF) {
-      printk("This firmware requires a shim to work around bugs.\n");
-   }
-
-   if (prom_claim(LOW_BASE,
-                  LOW_END - LOW_BASE,
-                  0) == (void *) -1) {
-      printk("Couldn't claim LOW memory\n");
+      printk("This firmware requires a shim to work around bugs\n");
    }
 
    malloc_init();
    disk_init(&bi);
-   if (!bi.default_device ||
-       bi.default_part == 0) {
-      printk("Skipping loading configuration file due to missing or invalid configuration.\n");
-   } else {
-      printk("Configuration file @ %s:%d%s\n", bi.default_device,
-             bi.default_part,
-             bi.config_file);
-
-      err = load_file(bi.default_device,
-                      bi.default_part,
-                      bi.config_file,
-                      LOW_BASE,
-                      LOW_END,
-                      &config_len);
-      if (err != ERR_NONE) {
-         printk("\nCouldn't load '%s': %r)\n", bi.config_file, err);
-      } else {
-         char *p;
-         if (cfg_parse(bi.config_file, LOW_BASE, config_len) < 0) {
-            printk ("Syntax error or read error in %s.\n", bi.config_file);
-         }
-
-         bi.flags |= CONFIG_VALID;
-         p = cfg_get_strg(0, "init-code");
-         if (p) {
-            call_prom("interpret", 1, 1, p);
-         }
-
-         p = cfg_get_strg(0, "init-message");
-         if (p) {
-            printk("%s\n", p);
-         }
-
-         p = cfg_get_strg(0, "message");
-         if (p) {
-            print_message_file(&bi, p);
-         }
-      }
-   }
+   load_config(&bi);
 
    for (;;) {
       quik_err_t err;
@@ -557,26 +591,18 @@ int main(void *a1, void *a2, void *prom_entry)
          continue;
       }
 
-      if ((image_len > (LOW_END - LOW_BASE)) &&
+      if ((image_len > SECOND_BASE) &&
           (bi.flags & BOOT_PRE_2_4)) {
-         printk("Kernel '%s' too large to be loaded low and too old to be loaded high\n",
-                kname);
+         printk("Pre-2.4 kernel '%s' too large to be loaded\n", kname);
          continue;
       }
 
-      if (bi.flags & BOOT_PRE_2_4) {
-         load_buf = LOW_BASE;
-         load_buf_end = LOW_END;
-      } else {
-         load_buf = prom_claim_chunk(HIGH_BASE, image_len, 0);
-         if (load_buf == (char *) -1) {
-            printk("Couldn't allocate memory to load kernel.\n");
-            continue;
-         }
-         printk("kernel is at %p\n", load_buf);
-
-         load_buf_end = load_buf + image_len;
+      load_buf = prom_claim_chunk(LOAD_BASE, image_len);
+      if (load_buf == (char *) -1) {
+         printk("Couldn't allocate memory to load kernel\n");
+         continue;
       }
+      load_buf_end = load_buf + image_len;
 
       err = load_file(kern_device, kern_part, kname,
                       load_buf, load_buf_end,
@@ -607,13 +633,13 @@ int main(void *a1, void *a2, void *prom_entry)
          continue;
       }
 
-      if ((void *) load_buf >= HIGH_BASE) {
+      if ((void *) load_buf >= LOAD_BASE) {
          bi.initrd_base = load_buf_end;
       } else {
-         bi.initrd_base = HIGH_BASE;
+         bi.initrd_base = LOAD_BASE;
       }
 
-      bi.initrd_base = prom_claim_chunk((void *) bi.initrd_base, bi.initrd_len, 0);
+      bi.initrd_base = prom_claim_chunk((void *) bi.initrd_base, bi.initrd_len);
       if (bi.initrd_base == (void *) -1) {
          printk("Claim failed for %u bytes\n", bi.initrd_len);
          continue;

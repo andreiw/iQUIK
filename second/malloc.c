@@ -30,7 +30,7 @@ static char *last_alloc = 0;
 quik_err_t
 malloc_init()
 {
-   malloc_ptr = prom_claim((void *) MALLOC_BASE, MALLOC_SIZE, 0);
+   malloc_ptr = (char *) prom_claim((void *) MALLOC_BASE, MALLOC_SIZE);
    if (malloc_ptr == (char *) -1) {
       return ERR_OF_CLAIM;
    }
