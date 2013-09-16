@@ -46,6 +46,7 @@ typedef struct {
 
 #define QUIK_ERR_LIST \
    QUIK_ERR_DEF(ERR_NONE, "no error")                                   \
+   QUIK_ERR_DEF(ERR_OF_CLAIM, "claim failed")                           \
    QUIK_ERR_DEF(ERR_DEV_OPEN, "cannot open device")                     \
    QUIK_ERR_DEF(ERR_DEV_SHORT_READ, "short read on device")             \
    QUIK_ERR_DEF(ERR_PART_NOT_MAC, "partitioning not macintosh")         \
@@ -131,6 +132,7 @@ int cfg_get_flag(char *image, char *item);
 void cfg_print_images(void);
 char *cfg_get_default(void);
 
+quik_err_t malloc_init(void);
 void *malloc(unsigned);
 void spinner(int freq);
 

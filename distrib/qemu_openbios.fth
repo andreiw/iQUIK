@@ -32,7 +32,7 @@
 \ SECOND_BASE and SECOND_SIZE in
 \ quik/include/layout
 \
-10000 value size
+20000 value size
 setenv load-base 3e0000
 
 \

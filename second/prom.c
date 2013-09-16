@@ -364,7 +364,7 @@ prom_claim_chunk(void *virt,
   for (addr = (void *) ALIGN_UP((unsigned) virt, SIZE_1M);
        addr <= (void*) PROM_CLAIM_MAX_ADDR;
        addr = (void *) ((unsigned) addr + SIZE_1M)) {
-     found = prom_claim(addr, size, 0);
+     found = prom_claim(addr, size, align);
      if (found != (void *)-1) {
         return found;
      }

@@ -33,10 +33,6 @@
 #include "file.h"
 #include <layout.h>
 
-#define LOW_BASE        ((void *) 0x14000)
-#define LOW_END         ((void *) SECOND_BASE)
-#define HIGH_BASE       ((void *) 0x800000)
-
 static boot_info_t bi;
 
 #define DEFAULT_TIMEOUT -1
@@ -484,11 +480,7 @@ int main(void *a1, void *a2, void *prom_entry)
 
    char *load_buf;
    char *load_buf_end;
-   extern char __bss_start, _end;
    quik_err_t err;
-
-   /* Always first. */
-   memset(&__bss_start, 0, &_end - &__bss_start);
 
    prom_init(prom_entry, &bi);
    printk("iQUIK OldWorld Bootloader\n");
@@ -497,6 +489,13 @@ int main(void *a1, void *a2, void *prom_entry)
       printk("This firmware requires a shim to work around bugs.\n");
    }
 
+   if (prom_claim(LOW_BASE,
+                  LOW_END - LOW_BASE,
+                  0) == (void *) -1) {
+      printk("Couldn't claim LOW memory\n");
+   }
+
+   malloc_init();
    disk_init(&bi);
    if (!bi.default_device ||
        bi.default_part == 0) {

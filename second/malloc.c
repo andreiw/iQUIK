@@ -21,13 +21,32 @@
 */
 
 #include <layout.h>
+#include "quik.h"
 
-static char *malloc_ptr = (char *) MALLOC_BASE;
+static char *malloc_ptr = NULL;
+static char *malloc_end = NULL;
 static char *last_alloc = 0;
+
+quik_err_t
+malloc_init()
+{
+   malloc_ptr = prom_claim((void *) MALLOC_BASE, MALLOC_SIZE, 0);
+   if (malloc_ptr == (char *) -1) {
+      return ERR_OF_CLAIM;
+   }
+
+   malloc_end = malloc_ptr + MALLOC_SIZE;
+   return ERR_NONE;
+}
+
 
 void *malloc (unsigned int size)
 {
    char *caddr;
+
+   if ((malloc_ptr + size + sizeof(int)) >= malloc_end) {
+      return NULL;
+   }
 
    *(int *)malloc_ptr = size;
    caddr = malloc_ptr + sizeof(int);
@@ -46,24 +65,25 @@ void *realloc(void *ptr, unsigned int size)
       malloc_ptr = oaddr + size;
       return oaddr;
    }
+
    caddr = malloc(size);
    if (caddr != 0 && oaddr != 0)
       memcpy(caddr, oaddr, *(int *)(oaddr - sizeof(int)));
    return caddr;
 }
 
-void free (void *m)
+void free(void *m)
 {
    if (m == last_alloc)
       malloc_ptr = (char *) last_alloc - sizeof(int);
 }
 
-void mark (void **ptr)
+void mark(void **ptr)
 {
    *ptr = (void *) malloc_ptr;
 }
 
-void release (void *ptr)
+void release(void *ptr)
 {
    malloc_ptr = (char *) ptr;
 }

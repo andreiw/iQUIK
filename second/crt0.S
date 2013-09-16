@@ -1,51 +1,25 @@
 #include <layout.h>
 
-.section ".text"
+.section ".start"
 .globl _start
+.globl _stack_top
+.globl _bss_start
+.globl _bss_end
 _start:
 
-        /* From first stage? */
-        lis     14,0xdeadbeef@h
-        ori     14,14,0xdeadbeef@l
-        cmp     0,14,5
-        beq     _not_from_of
-
-        /*
-         * No, we were booted using bootsector 0.
-         * Need to set up basic runtime environment.
-         */
-
-        /* Make sure our code is consistent in the I and D caches. */
-        lis     14,_start@ha
-        addi    3,14,_start@l
-        addi    6,14,_end@l
-1:      dcbf    0,3
-        icbi    0,3
-        addi    3,3,0x20
-        cmp     0,3,6
-        ble     1b
-        sync
-        isync
-
-/* Use the BAT3 registers to map the 1st 8MB of RAM to 0. */
-        mfpvr   9
-        rlwinm  9,9,16,16,31            /* r9 = 1 for 601, 4 for 604 */
-        cmpi    0,9,1
-        bne     4f
-        li      7,4                     /* set up BAT registers for 601 */
-        li      8,0x7f
-        b       5f
-4:      li      7,0xff                  /* set up BAT registers for 604 */
-        li      8,2
-        mtdbatu 3,7
-        mtdbatl 3,8
-5:      mtibatu 3,7
-        mtibatl 3,8
-        isync
+/* Clear BSS. */
+        lis     10,_bss_start@h
+        ori     10,10,_bss_start@l
+        lis     11,_bss_end@h
+        ori     11,11,_bss_end@l
+        subi    10,10,4
+        subi    11,11,4
+        li      0, 0
+1:      stwu    0,4(10)
+        cmp     0,10,11
+        bne     1b
 
 /* Load up an initial stack pointer */
-        lis     1,STACK_TOP@h
-        subi    1,1,0x180
-
-_not_from_of:
-        b main
+        lis     1,_stack_top@h
+        ori     1,1,_stack_top@l
+        b       main

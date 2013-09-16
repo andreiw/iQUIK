@@ -10,12 +10,29 @@
  * (at your option) any later version.
  */
 
-#define VERSION		"3.0"
+#define VERSION        "3.0"
 
-#define SECOND_BASE	0x3e0000
-#define SECOND_SIZE	0x10000
+/*
+ * Boot code load address and max size.
+ */
+#define SECOND_BASE     0x3e0000
+#define SECOND_SIZE     0x20000
 
-#define STACK_TOP	0x400000
 
-/* 0x400000 - 0x500000 is one of OldWorld OF's favourite places to be. */
-#define MALLOC_BASE	0x500000
+/*
+ * Only the config file and 2.2 kernels get loaded here.
+ */
+#define LOW_BASE        ((void *) 0x14000)
+#define LOW_END         ((void *) SECOND_BASE)
+
+/*
+ * 0x400000 - 0x500000 is one of OldWorld OF's favourite places to be,
+ * so avoid...
+ */
+#define MALLOC_BASE     0x500000
+#define MALLOC_SIZE     0x300000
+
+/*
+ * Recent kernels + initrd go here.
+ */
+#define HIGH_BASE       ((void *) 0x800000)

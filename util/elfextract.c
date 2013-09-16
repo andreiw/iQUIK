@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <inttypes.h>
+#include <layout.h>
 #include "elf.h"
 
 FILE *fi, *fo;
@@ -79,6 +80,12 @@ main(int ac, char **av)
    }
    if (phsize == 0) {
       fprintf(stderr, "%s: doesn't have a loadable segment\n", ni);
+      exit(1);
+   }
+
+   if (phsize > SECOND_SIZE) {
+      fprintf(stderr, "%s grew beyond SECOND_SIZE (0x%x instead of 0x%x)\n",
+             phsize, SECOND_SIZE, ni);
       exit(1);
    }
 
