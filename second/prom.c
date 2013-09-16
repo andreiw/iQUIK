@@ -368,9 +368,19 @@ prom_claim_chunk(void *virt,
      if (found != (void *)-1) {
         return found;
      }
-
-     printk("\ncouldn't claim at %p\n", addr);
   }
 
   return (void*) -1;
+}
+
+
+void
+prom_ensure_claimed(void *virt,
+                    unsigned int size)
+{
+   vaddr_t addr = (vaddr_t) virt;
+
+   for (addr; addr < (vaddr_t) virt + size; addr += SIZE_4K) {
+      prom_claim(addr, SIZE_4K, 1);
+   }
 }

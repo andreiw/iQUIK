@@ -215,7 +215,8 @@ command_ls(boot_info_t *bi,
 
 
 void
-bang_commands(boot_info_t *bi, char *args)
+bang_commands(boot_info_t *bi,
+              char *args)
 {
    if (!strcmp(args, "debug")) {
       bi->flags |= DEBUG_BEFORE_BOOT;
@@ -627,13 +628,19 @@ int main(void *a1, void *a2, void *prom_entry)
          continue;
       }
 
-      err = elf_relo(&bi, &image);
-      if (err != ERR_NONE) {
-         printk("Error parsing '%s': %r\n", kname, err);
-         continue;
-      }
-
       break;
+   }
+
+   err = elf_relo(&bi, &image);
+   if (err != ERR_NONE) {
+      printk("Error relocating kernel: %r\n", err);
+      prom_exit();
+   }
+
+   if (bi.flags & BOOT_PRE_2_4 &&
+       bi.flags & SHIM_OF) {
+      printk("OF shimming unsupported for pre-2.4 kernels\n");
+      bi.flags ^= SHIM_OF;
    }
 
    if (bi.flags & DEBUG_BEFORE_BOOT) {
@@ -644,7 +651,7 @@ int main(void *a1, void *a2, void *prom_entry)
       printk("Kernel: 0x%x @ 0x%x\n", image.text_len, image.linked_base);
       printk("Initrd: 0x%x @ 0x%x\n", bi.initrd_len, bi.initrd_base);
       printk("Kernel parameters: %s\n", params);
-      printk("Entry = 0x%x\n", image.entry);
+      printk("Kernel entry: 0x%x\n", image.entry);
       prom_pause(NULL);
    } else if (bi.flags & PAUSE_BEFORE_BOOT) {
       prom_pause(bi.pause_message);

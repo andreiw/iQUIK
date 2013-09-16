@@ -114,6 +114,8 @@ quik_err_t elf_relo(boot_info_t *bi,
        * After this memmove, *p and *e may have been overwritten.
        * Entry points to kernel entry.
        */
+      prom_ensure_claimed((void *) image->linked_base,
+                          image->text_len, 0);
       memmove((void *) image->linked_base,
               (void *) (image->buf + image->text_offset),
               image->text_len);
@@ -168,8 +170,8 @@ quik_err_t elf_boot(boot_info_t *bi,
       }
    }
 
-   printk("Starting at %p\n", start);
    set_bootargs(params);
+
    (* (void (*)()) start)(initrd_base, initrd_len,
                           (bi->flags & SHIM_OF) ?
                           bi->prom_shim :
