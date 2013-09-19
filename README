@@ -42,9 +42,10 @@ Support
 =======
 
 Although meant for OldWorlds in general, it has only been tested
-on a PowerBook 3400c with OF 2.0.1. Testing on a UMAX clone
-with 1.0.5 is next. It would be nice to test with 2.4 and
-maybe even a NewWorld, although the later isn't a goal.
+on a PowerBook 3400c with OF 2.0.1 and PowerBook G3 PDQ with
+OF 2.0.1. Testing on a UMAX clone with 1.0.5 is next. It would be nice
+to test with 2.4 and maybe even a NewWorld, although the later isn't a goal.
+See distrib/ for docs on getting to run on certain hardware (including qemu).
 
 You can boot Wheezy (2.6.32). It can probably boot later
 kernels too, although that is still untested.

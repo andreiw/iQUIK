@@ -1,0 +1,12 @@
+iQUIK on a PowerBook 3400c
+==========================
+
+The 3400c has a 603ev and uses OpenFirmware 2.0.1.
+
+You can boot from:
+* Floppy
+* Internal IDE HD
+* PCMCIA CF
+* CD is currently untested until I get a drive
+
+Nothing crazy is needed. Just follow the directions in README.

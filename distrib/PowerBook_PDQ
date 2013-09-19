@@ -1,0 +1,26 @@
+iQUIK on a PowerBook PDQ
+========================
+
+The PDQ has a G3 and uses OpenFirmware 2.0.1.
+
+You can boot from:
+* Floppy untested (but probably works), since I have no drive.
+* Internal IDE HD
+* PCMCIA CF
+* CD not yet tested
+
+For some reason, OpenFirmware doesn't enumerate the Cardbus slots, and this prevents
+booting from CF without some patches. Fortunately, this is not too crazy.
+
+The following Forth code can be put into nvramrc:
+
+: probe-card select-dev " probe-card" my-self $call-method unselect-dev ;
+: my-boot " ata2" probe-card " ata3" probe-card boot ;
+
+You can setenv boot-command to be my-boot now.
+
+Note, you need to pass "video=ofonly video=offb" as extra kernel parameters, otherwise
+your video will not work (psychodelic colors, bad timing and nothing visible since aty128fb
+misinitializes the hardware).
+
+Follow the directions in README.

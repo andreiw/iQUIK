@@ -22,7 +22,7 @@
 \ " /pci/mac-io/escc/ch-a" output
 \ " /pci/mac-io/escc/ch-a" input
 \
-\ ...and copy-paste in the rest of this file (or load it).
+\ ...and copy-paste in the rest of this file (or load it - this is a valid Forth file).
 \
 
 0 value ih
