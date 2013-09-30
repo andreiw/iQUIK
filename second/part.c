@@ -78,7 +78,7 @@ read_mac_partition(ihandle dev,
           || (part == 0 && (mp->status & STATUS_BOOTABLE) != 0
               && strcasecmp(mp->processor, "powerpc") == 0)) {
          p->start = mp->start_block * secsize;
-         p->len = mp->block_count * secsize;
+         p->len = (offset_t) mp->block_count * secsize;
          p->dev = dev;
          return ERR_NONE;
       }
@@ -207,7 +207,7 @@ part_read(part_t *part,
    /*
     *  Check partition boundaries.
     */
-   if ((off + byte_offset + byte_len - 1) >=
+   if ((off + byte_offset + byte_len) >=
        part->len) {
       return ERR_PART_BEYOND;
    }
