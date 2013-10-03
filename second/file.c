@@ -135,28 +135,51 @@ file_path(char *pathspec,
 
    p->path = strchr(pathspec, ':');
    if (!p->path) {
+
+      /*
+       * Short form using default device/part.
+       */
       p->path = pathspec;
+      p->part = default_part;
       p->device = default_device;
    } else {
+
+      /*
+       * Colon presence means the path is treated as 'device:part/fspath'
+       * or as 'device:part'. Thus if fspath contains colons (unlikely),
+       * the full path must be given.
+       */
       p->path[0] = '\0';
       p->path++;
       p->device = pathspec;
-   }
 
-   n = strtol(p->path, &endp, 0);
-   if (endp != p->path) {
+      n = strtol(p->path, &endp, 0);
+      if (endp == p->path) {
+
+         /*
+          * We had a colon, but it wasn't followed by the
+          * partition number, bad path.
+          */
+         goto bad_path;
+      }
+
       p->part = n;
       p->path = endp;
-   } else {
-      p->part = default_part;
    }
 
    /* Path */
    if (p->path[0] != '/') {
-      free(p);
-      return ERR_FS_PATH;
+      if (p->path[0] == '\0') {
+         p->path = "/";
+      } else {
+         goto bad_path;
+      }
    }
 
    *path = p;
    return ERR_NONE;
+
+bad_path:
+   free(p);
+   return ERR_FS_PATH;
 }

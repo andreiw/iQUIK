@@ -16,7 +16,7 @@
 \
 \ [ install.img is assumed to contain the Debian wheezy bits from
 \   http://ftp.nl.debian.org/debian/dists/wheezy/main/installer-powerpc/current/images/powerpc/hd-media/
-\   ...keep in mind that initrd-size parameter is unsupported and unneeded ]
+\   ... ]
 \
 \ Then switch console to serial like -
 \ " /pci/mac-io/escc/ch-a" output

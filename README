@@ -28,7 +28,7 @@ a number of important ways:
       themselves as the kernel not finding its initrd.
 4) It builds with a recent toolchain (GCC 4.4)
 5) It doesn't require libext2fs, and yet supports
-   symlinks and the "!ls" command.
+   symlinks and listing files via "!ls"
 6) It can boot from a floppy.
 7) It can boot from anything via partition zero.
 8) It drops the first stage loader and the finicky block maps,
@@ -83,7 +83,8 @@ In our case it has to be the "partition zero" of whatever device you
 installed iQUIK onto.
 
 iQUIK will then try to locate the quik.conf file using the path in
-'boot-file'. 
+'boot-file'. It will also, on failure, try /etc/quik.conf, /boot/quik.conf
+and /quik.conf.
 
 For me:
 boot-device     ata0/ata-disk@0:0
@@ -131,6 +132,9 @@ DeviceType=0x0, DeviceId=0x0
 
 To do this I've used the 'i' command to initialize the partition table, and the 'b'
 command to create the new 800K bootstrap partition.
+
+NOTE: It's possible to run into OF problems booting large disks. It's probably better to create
+a /boot partition to contain vmlinux/initrd/quik.conf right after the bootsrap partition.
 
 Assuming the physical disk you've prepared as above contains your root partition
 (with /boot), running 
@@ -206,6 +210,14 @@ boot: !ls upper/pccard45,401@0:4/installer
 
 [ list files under /install on partition 4 of CF card in top PCMCIA slot ]
 
+boot: !cat /quik.conf
+
+[ show contents of /quik.conf on default device ]
+
+boot: !of 1 1 + .
+
+[ interpret Forth via OF ]
+
 boot: !halt
 
 [ enters OF... type 'go' to get back ]
@@ -219,7 +231,7 @@ quik.conf differences
 =====================
 
 * Symlinks are supported
-* initrd-size argument is unnecessary and not supported
+* initrd-size argument is unnecessary and unused.
 * initrd can contain OF device:part
 * forth eval image names via $ not supported (it was broken anyway).
 

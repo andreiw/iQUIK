@@ -60,6 +60,8 @@ typedef struct {
    QUIK_ERR_DEF(ERR_FS_OPEN, "cannot open volume as file system")       \
    QUIK_ERR_DEF(ERR_FS_PATH, "bad path")                                \
    QUIK_ERR_DEF(ERR_FS_NOT_FOUND, "file not found")                     \
+   QUIK_ERR_DEF(ERR_FS_NOT_DIR, "not a directory")                      \
+   QUIK_ERR_DEF(ERR_FS_NOT_REG, "not a regular file")                   \
    QUIK_ERR_DEF(ERR_FS_NOT_EXT2, "FS is not ext2")                      \
    QUIK_ERR_DEF(ERR_FS_CORRUPT, "FS is corrupted")                      \
    QUIK_ERR_DEF(ERR_FS_LOOP, "symlink loop detected")                   \

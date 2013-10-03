@@ -5,8 +5,8 @@ The PDQ has a G3 and uses OpenFirmware 2.0.1.
 
 You can boot from:
 * Floppy untested (but probably works), since I have no drive.
-* Internal IDE HD
-* PCMCIA CF
+* PCMCIA CF (see below)
+* Internal IDE (see below)
 * CD not yet tested
 
 For some reason, OpenFirmware doesn't enumerate the Cardbus slots, and this prevents
@@ -14,13 +14,35 @@ booting from CF without some patches. Fortunately, this is not too crazy.
 
 The following Forth code can be put into nvramrc:
 
-: probe-card select-dev " probe-card" my-self $call-method unselect-dev ;
+---> CHOP <---
+: probe-card select-dev " probe-pccard" my-self $call-method unselect-dev ;
 : my-boot " ata2" probe-card " ata3" probe-card boot ;
+---> CHOP <---
 
 You can setenv boot-command to be my-boot now.
 
 Note, you need to pass "video=ofonly video=offb" as extra kernel parameters, otherwise
 your video will not work (psychodelic colors, bad timing and nothing visible since aty128fb
 misinitializes the hardware).
+
+To boot from internal IDE, put the following in your nvramrc:
+
+---> CHOP <---
+: $E device-end
+: &c " ata-enable" $call-parent ;
+devalias ide0 /pci/@10/ata0
+devalias ide1 /pci/@10/@34/ata1
+devalias ide4 /pci/@d/@34/ata4
+dev /aliases
+: $M delete-property ;
+" ata-int" $M
+" ata0" $M
+" ata1" $M
+" ata4" $M
+dev ide0
+: open use-ata-interface 0 &c -1 ;
+: set-device-ID set-drive-select ;
+$E
+---> CHOP <---
 
 Follow the directions in README.

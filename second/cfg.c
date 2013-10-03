@@ -51,6 +51,9 @@ CONFIG cf_options[] =
    {cft_flag, "read-write", NULL},
    {cft_strg, "append", NULL},
    {cft_strg, "initrd", NULL},
+
+   /* Only for compatibility - unused. */
+   {cft_strg, "initrd-size", NULL},
    {cft_flag, "pause-after", NULL},
    {cft_strg, "pause-message", NULL},
    {cft_strg, "init-code", NULL},

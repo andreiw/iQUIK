@@ -726,7 +726,7 @@ quik_err_t ext2fs_find_file1(const char *currpath,
       /* At this point it is expected that the current node is a directory, check if this is true.  */
       if (type != FILETYPE_DIRECTORY) {
          ext2fs_free_node(currnode, currroot);
-         return ERR_FS_NOT_FOUND;
+         return ERR_FS_NOT_DIR;
       }
 
       oldnode = currnode;
@@ -815,10 +815,10 @@ ext2fs_find_file(const char *path,
 
    /* Check if the node that was found was of the expected type.  */
    if ((expecttype == FILETYPE_REG) && (foundtype != expecttype)) {
-      return ERR_FS_NOT_FOUND;
+      return ERR_FS_NOT_REG;
    } else if ((expecttype == FILETYPE_DIRECTORY)
               && (foundtype != expecttype)) {
-      return ERR_FS_NOT_FOUND;
+      return ERR_FS_NOT_DIR;
    }
 
    return ERR_NONE;
