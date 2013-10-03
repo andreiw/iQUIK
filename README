@@ -101,7 +101,7 @@ iQUIK will then parse quik.conf similar to Yaboot, the old QUIK, MILO, LILO, etc
 You get the typical 'boot:' prompt. Tab shows the list of images defined
 in your quik.conf, if any.
 
-You can also type in custon image locations, thus booting any arbitrary
+You can also type in custom image locations, thus booting any arbitrary
 kernel with any initrd and any parameters, e.g.:
        [device:][partno]/vmlinux
        [device:][partno]/vmlinux -- kernel arguments
