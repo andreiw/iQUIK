@@ -247,6 +247,7 @@ The next items I'll probably look at, are (in no order):
 4) More uncruftification.
 5) Allow specifying a whole disk file system (need partitions today).
 6) Build an XCOFF variant for loading from iso9660, enet, etc.
+7) Check model and apply nvramrc patches
 
 
 Contact Info
