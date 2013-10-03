@@ -45,4 +45,10 @@ dev ide0
 $E
 ---> CHOP <---
 
+Now, set the boot-device to ide0/disk@0:0, even if you're not currently booting from this device!
+The 'probe-bus' word for the ATA support package will only enumerate the IDE bus if it sees boot-device
+begin with "ide".
+
+Now you should be able to boot from ide0/disk@0:0.
+
 Follow the directions in README.
