@@ -485,13 +485,19 @@ print_message_file(boot_info_t *bi, char *p)
 quik_err_t
 load_config(boot_info_t *bi)
 {
-   quik_err_t err;
    length_t len;
    char *buf;
    char *endp;
-   unsigned n;
    char *p;
    path_t path;
+   unsigned n = 0;
+   quik_err_t err = ERR_NONE;
+   char *attempts[] = {
+      bi->config_file,
+      "/boot/quik.conf",
+      "/quik.conf",
+      NULL
+   };
 
    if (!bi->default_device ||
        bi->default_part == 0) {
@@ -501,11 +507,21 @@ load_config(boot_info_t *bi)
 
    path.device = bi->default_device;
    path.part = bi->default_part;
-   path.path = bi->config_file;
+   while (attempts[n] != NULL) {
+      path.path = attempts[n];
 
-   printk("Configuration file @ '%P'\n", &path);
-   err = file_len(&path, &len);
+      printk("Trying configuration file @ '%P'\n", &path);
+      err = file_len(&path, &len);
+      if (err == ERR_NONE) {
+         break;
+      }
+
+      n++;
+   }
+
    if (err != ERR_NONE) {
+
+      /* Set by file_len. */
       return err;
    }
 

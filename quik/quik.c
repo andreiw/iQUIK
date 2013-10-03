@@ -38,7 +38,6 @@
 #include <asm/mac-part.h>
 #include <layout.h>
 
-#define DFL_CONFIG      "/etc/quik.conf"
 #define DFL_SECONDARY   "/boot/second.b"
 
 #define SD_MAJOR        8       /* Major device no. for scsi disks */
@@ -234,7 +233,7 @@ void install_stage(char *device,
    struct stat st;
 
    if (verbose) {
-      printf("Writing first-stage QUIK boot block to '%s'\n", device);
+      printf("Writing iQUIK boot block to '%s'\n", device);
    }
 
    if ((fd = open(device, O_WRONLY)) == -1) {
@@ -386,7 +385,7 @@ int main(int argc,char **argv)
 {
    char *new_root = NULL;
    char *basedev = NULL;
-   char *secondary = DFL_SECONDARY;
+   char *name = DFL_SECONDARY;
    int c;
    struct stat st1;
    int version = 0;
@@ -425,7 +424,7 @@ int main(int argc,char **argv)
    while ((c = getopt(argc, argv, "b:d:r:vVTh")) != -1) {
       switch(c) {
       case 'b':
-         secondary = optarg;
+         name = optarg;
          break;
       case 'r':
          new_root = optarg;
@@ -461,9 +460,9 @@ int main(int argc,char **argv)
       new_root = getenv("ROOT");
    }
 
-   secondary = chrootcpy(new_root, secondary);
-   if (stat(secondary, &st1) < 0) {
-      fatal("Cannot open second stage loader '%s'", secondary);
+   name = chrootcpy(new_root, name);
+   if (stat(name, &st1) < 0) {
+      fatal("Cannot open iQUIK boot block '%s'", name);
    }
 
    if (basedev == NULL) {
@@ -490,7 +489,7 @@ int main(int argc,char **argv)
       default:
          basedev = find_dev(st1.st_dev);
          if (basedev == NULL) {
-            fatal("Couldn't find out what device second stage boot is on");
+            fatal("Couldn't find out what device to install to (please use override)");
          }
       }
    } else {
@@ -498,7 +497,7 @@ int main(int argc,char **argv)
    }
 
    read_sb(basedev, &part_index, &doff, &secsize);
-   install_stage(basedev, secondary, &stage_size, doff);
+   install_stage(basedev, name, &stage_size, doff);
    make_bootable(basedev,
                  secsize,
                  part_index,
