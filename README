@@ -50,6 +50,9 @@ See distrib/ for docs on getting to run on certain hardware (including qemu).
 You can boot Wheezy (2.6.32). It can probably boot later
 kernels too, although that is still untested.
 
+Also, see http://www.opensource.apple.com/source/system_cmds/system_cmds-175/nvram.tproj/nvram/
+for NVRAMRC patches necessary, as documentation under distrib/ is only for machines I have.
+Documentation and functionality patches welcome!
 
 Prebuilts
 =========
