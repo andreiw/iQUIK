@@ -50,9 +50,11 @@ See distrib/ for docs on getting to run on certain hardware (including qemu).
 You can boot Wheezy (2.6.32). It can probably boot later
 kernels too, although that is still untested.
 
-Also, see http://www.opensource.apple.com/source/system_cmds/system_cmds-175/nvram.tproj/nvram/
-for NVRAMRC patches necessary, as documentation under distrib/ is only for machines I have.
-Documentation and functionality patches welcome!
+Also, see below Apple link for NVRAMRC patches necessary, as documentation
+under distrib/ is only for machines I have. Documentation and functionality
+patches welcome!
+
+http://www.opensource.apple.com/source/system_cmds/system_cmds-175/nvram.tproj/nvram/
 
 Prebuilts
 =========
@@ -82,8 +84,8 @@ The boot flow
 =============
 
 OF will boot the device listed under the 'boot-device' environment variable.
-In our case it has to be the "partition zero" of whatever device you
-installed iQUIK onto.
+In our case it has to be the "partition zero" of whatever device you installed
+iQUIK onto.
 
 iQUIK will then try to locate the quik.conf file using the path in
 'boot-file'. It will also, on failure, try /etc/quik.conf, /boot/quik.conf
@@ -133,31 +135,33 @@ Command (? for help): p
 Block size=512, Number of Blocks=2880
 DeviceType=0x0, DeviceId=0x0
 
-To do this I've used the 'i' command to initialize the partition table, and the 'b'
-command to create the new 800K bootstrap partition.
+To do this I've used the 'i' command to initialize the partition table,
+and the 'b' command to create the new 800K bootstrap partition.
 
-NOTE: It's possible to run into OF problems booting large disks. It's probably better to create
-a /boot partition to contain vmlinux/initrd/quik.conf right after the bootsrap partition.
+NOTE: It's possible to run into OF problems booting large disks. It's
+probably better to create a /boot partition to contain vmlinux, initrd,
+and quik.conf right after the bootstrap partition.
 
-Assuming the physical disk you've prepared as above contains your root partition
-(with /boot), running 
+Assuming the physical disk you've prepared as above contains your
+root partition (with /boot), running 
 
 $ quik
 
-...should be sufficient. 'quik -v' for verbosity. 'quik -T -v' if you just want
-to see what quik would have done. The tool will not do anything if you don't have
-an Apple_Bootstrap partition.
+...should be sufficient. 'quik -v' for verbosity. 'quik -T -v'
+if you just want to see what quik would have done. The tool will
+not do anything if you don't have an Apple_Bootstrap partition.
 
 If you want to install on some other media, use the '-d' flag:
 
 $ quik -d /dev/fd0
 
-If you want to use an alternate second.b (instead of the one in /boot), use the
-'-b' flag:
+If you want to use an alternate second.b (instead of the one in /boot),
+use the '-b' flag:
 
 $ quik -b /my/hacked/second.b
 
-NOTE: the 'quik' tool doesn't set the NVRAM variables itself. You need to do that yourself.
+NOTE: the 'quik' tool doesn't set the NVRAM variables itself. You
+need to do that yourself.
 
 Example:
 
