@@ -25,30 +25,46 @@
 
 ihandle prom_stdin;
 ihandle prom_stdout;
-ihandle prom_chosen;
-ihandle prom_options;
+phandle prom_chosen;
+phandle prom_root;
+phandle prom_options;
 ihandle prom_mmu;
 ihandle prom_memory;
 
+/*
+ * OF versions to special-case.
+ */
+#define OF_VER_105 "Open Firmware, 1.0.5"
+#define OF_VER_201 "Open Firmware, 2.0.1"
+
+/*
+ * Models to special-case.
+ */
+#define SYSTEM_3400_2400  "AAPL,3400/2400"
+#define SYSTEM_WALLSTREET "AAPL,PowerBook1998"
+
 /* OF 1.0.5 claim bug. */
-#define PROM_CLAIM_WORK_AROUND    (1 << 1)
+#define PROM_CLAIM_WORK_AROUND      (1 << 1)
 
 /* Certain bugs need us to shim away OF from the kernel. */
-#define PROM_NEED_SHIM            (1 << 2)
+#define PROM_NEED_SHIM              (1 << 2)
 
-/* OF 2.0.1 setprop doesn't do deep copy = no initrd. */
-#define PROM_SHALLOW_SETPROP      (1 << 3)
+/* OF 2.0.1 on some machines - setprop doesn't do deep copy = no initrd. */
+#define PROM_SHALLOW_SETPROP        (1 << 3)
 
-/* 3400c or OF 2.0.1? Recent kernels hang initializing mediabay ATA. */
-#define PROM_HIDE_MEDIABAY_ATA    (1 << 4)
+/* 3400c Recent kernels hang initializing mediabay ATA. */
+#define PROM_3400_HIDE_MEDIABAY_ATA (1 << 4)
+#define PROM_3400_MEDIABAY          "/bandit/ohare/media-bay/ata"
+#define PROM_3400_MEDIABAY_ATAPI    "/bandit/ohare/media-bay/ata/atapi-disk"
+#define PROM_3400_MEDIABAY_ATA      "/bandit/ohare/media-bay/ata/ata-disk"
+
 static unsigned prom_flags = 0;
-
 static struct prom_args prom_args;
 
 typedef struct of_shim_state {
   boot_info_t *bi;
 
-  /* For PROM_HIDE_MEDIABAY_ATA. */
+  /* For PROM_3400_HIDE_MEDIABAY_ATA. */
   phandle mediabay_ata;
 } of_shim_state_t;
 
@@ -61,6 +77,10 @@ void
 prom_exit()
 {
    struct prom_args args;
+
+   /*
+    * TBD: Clean up opened handles.
+    */
 
    args.service = "exit";
    args.nargs = 0;
@@ -115,6 +135,10 @@ putchar(int c)
 {
    char ch = c;
 
+   if (prom_stdout == NULL) {
+      return 0;
+   }
+
    if (c == '\n')
       putchar('\r');
    return (int) call_prom("write", 3, 1, prom_stdout, &ch, 1);
@@ -127,6 +151,10 @@ getchar()
    char ch;
    int r;
 
+   if (prom_stdin == NULL) {
+      return -1;
+   }
+
    while ((r = (int) call_prom("read", 3, 1, prom_stdin, &ch, 1)) == 0)
       ;
    return r > 0? ch: -1;
@@ -137,6 +165,10 @@ int
 nbgetchar()
 {
    char ch;
+
+   if (prom_stdin == NULL) {
+      return -1;
+   }
 
    return (int) call_prom("read", 3, 1, prom_stdin, &ch, 1) > 0? ch: -1;
 }
@@ -151,9 +183,6 @@ prom_shim(struct prom_args *args)
     * the address passed can sometimes be on the stack,
     * and initrd-start is one such affected variable,
     * sadly enough.
-    *
-    * This should be fixed in the kernel, but before it is,
-    * older kernels still need to be able to boot.
     */
    if (prom_flags & PROM_SHALLOW_SETPROP) {
       if (strcmp(args->service, "getprop") == 0) {
@@ -180,7 +209,7 @@ prom_shim(struct prom_args *args)
       }
    }
 
-   if (prom_flags & PROM_HIDE_MEDIABAY_ATA &&
+   if (prom_flags & PROM_3400_HIDE_MEDIABAY_ATA &&
        of_shim_state.mediabay_ata != (phandle) -1) {
       if (strcmp(args->service, "child") == 0 ||
           strcmp(args->service, "peer") == 0 ||
@@ -206,44 +235,95 @@ out:
 }
 
 
-void
+quik_err_t
 prom_init(void (*pp)(void *),
           boot_info_t *bi)
 {
-   ihandle oprom;
+   phandle oprom;
    char ver[64];
 
    prom_entry = pp;
    bi->prom_entry  = (vaddr_t) pp;
    bi->prom_shim = (vaddr_t) prom_shim;
 
+   prom_root = call_prom("finddevice", 1, 1, "/");
+   if (prom_root == (phandle) -1) {
+      return ERR_OF_INIT_NO_ROOT;
+   }
+
    /* First get a handle for the stdout device */
    prom_chosen = call_prom("finddevice", 1, 1, "/chosen");
    if (prom_chosen == (phandle) -1) {
-      prom_exit();
+      return ERR_OF_INIT_NO_CHOSEN;
    }
 
-   prom_memory = call_prom("open", 1, 1, "/memory");
-   (void) prom_getprop(prom_chosen, "mmu", &prom_mmu, sizeof(prom_mmu));
    (void) prom_getprop(prom_chosen, "stdout", &prom_stdout, sizeof(prom_stdout));
    (void) prom_getprop(prom_chosen, "stdin", &prom_stdin, sizeof(prom_stdin));
-   prom_options = call_prom("finddevice", 1, 1, "/options");
    printk("\n");
 
-   ver[0] = '\0';
-   oprom = call_prom("finddevice", 1, 1, "/openprom");
-   (void) prom_getprop(oprom, "model", ver, sizeof(ver));
-   if (strcmp(ver, "Open Firmware, 1.0.5") == 0) {
-      prom_flags |= PROM_CLAIM_WORK_AROUND;
-   } else if (strcmp(ver, "Open Firmware, 2.0.1") == 0) {
-      prom_flags |= PROM_NEED_SHIM;
-      prom_flags |= PROM_SHALLOW_SETPROP;
-      prom_flags |= PROM_HIDE_MEDIABAY_ATA;
+   prom_options = call_prom("finddevice", 1, 1, "/options");
+   if (prom_options == (phandle) -1) {
+      return ERR_OF_INIT_NO_OPTIONS;
    }
 
-   if (prom_flags & PROM_HIDE_MEDIABAY_ATA) {
-      of_shim_state.mediabay_ata =
-         call_prom("finddevice", 1, 1, "/bandit/ohare/media-bay/ata");
+   oprom = call_prom("finddevice", 1, 1, "/openprom");
+   if (oprom == (phandle) -1) {
+      return ERR_OF_INIT_NO_OPROM;
+   }
+
+   ver[0] = '\0';
+   (void) prom_getprop(oprom, "model", ver, sizeof(ver));
+   printk("Running on '%s'\n", ver);
+
+   if (strcmp(ver, OF_VER_105) == 0) {
+      prom_flags |= PROM_CLAIM_WORK_AROUND;
+
+      /* Not verified, but likely broken as well. */
+      prom_flags |= PROM_SHALLOW_SETPROP;
+   } else if (strcmp(ver, OF_VER_201) == 0) {
+
+      /*
+       * Broken for 3400c, not Wallstreet.
+       * Possibly older than Wallstreet systems are affected.
+       */
+      prom_flags |= PROM_SHALLOW_SETPROP;
+   }
+
+   ver[0] = '\0';
+   (void) prom_getprop(prom_root, "compatible", ver, sizeof(ver));
+   printk("System is '%s'\n", ver);
+
+   if (strcmp(ver, SYSTEM_3400_2400) == 0) {
+      prom_flags |= PROM_3400_HIDE_MEDIABAY_ATA;
+   }
+
+   if (prom_flags & PROM_CLAIM_WORK_AROUND) {
+      (void) prom_getprop(prom_chosen, "mmu", &prom_mmu, sizeof(prom_mmu));
+      prom_memory = call_prom("open", 1, 1, "/memory");
+      if (prom_memory == (ihandle) -1) {
+         return ERR_OF_INIT_NO_MEMORY;
+      }
+   }
+
+   if (prom_flags & PROM_SHALLOW_SETPROP) {
+      prom_flags |= PROM_NEED_SHIM;
+   }
+
+   if (prom_flags & PROM_3400_HIDE_MEDIABAY_ATA) {
+
+      /*
+       * Only if mediabay is empty that we hide it.
+       */
+      if (call_prom("finddevice", 1, 1, PROM_3400_MEDIABAY_ATAPI) == (phandle) -1 &&
+          call_prom("finddevice", 1, 1, PROM_3400_MEDIABAY_ATA) == (phandle) -1) {
+         of_shim_state.mediabay_ata =
+            call_prom("finddevice", 1, 1, PROM_3400_MEDIABAY);
+         if (of_shim_state.mediabay_ata == (phandle) -1) {
+            prom_flags ^= PROM_3400_HIDE_MEDIABAY_ATA;
+         } else {
+            prom_flags |= PROM_NEED_SHIM;
+         }
+      }
    }
 
    if (prom_flags & PROM_NEED_SHIM) {
@@ -255,6 +335,7 @@ prom_init(void (*pp)(void *),
    bi->bootargs = bi->of_bootargs;
 
    of_shim_state.bi = bi;
+   return ERR_NONE;
 }
 
 

@@ -613,8 +613,12 @@ iquik_main(void *a1,
    quik_err_t err;
    load_state_t image;
 
-   prom_init(prom_entry, &bi);
-   printk("iQUIK OldWorld Bootloader\n");
+   err = prom_init(prom_entry, &bi);
+   if (err != ERR_NONE) {
+      prom_exit();
+   }
+
+   printk("\niQUIK OldWorld Bootloader\n");
    printk("Copyright (C) 2013 Andrei Warkentin <andrey.warkentin@gmail.com>\n");
    if (bi.flags & SHIM_OF) {
       printk("This firmware requires a shim to work around bugs\n");

@@ -18,7 +18,7 @@ extern ihandle prom_chosen;
 extern ihandle prom_aliases;
 
 /* Prototypes */
-void prom_init(void (*pp)(void *), boot_info_t *bi);
+quik_err_t prom_init(void (*pp)(void *), boot_info_t *bi);
 void prom_exit(void);
 void *call_prom(char *service, int nargs, int nret, ...);
 void prom_print(char *msg);

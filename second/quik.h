@@ -50,6 +50,11 @@ typedef struct {
    QUIK_ERR_DEF(ERR_NONE, "no error")                                   \
    QUIK_ERR_DEF(ERR_NOT_READY, "operation should be retried")           \
    QUIK_ERR_DEF(ERR_OF_CLAIM, "claim failed")                           \
+   QUIK_ERR_DEF(ERR_OF_INIT_NO_CHOSEN, "no OF /chosen")                 \
+   QUIK_ERR_DEF(ERR_OF_INIT_NO_MEMORY, "no OF /memory")                 \
+   QUIK_ERR_DEF(ERR_OF_INIT_NO_OPTIONS, "no OF /options")               \
+   QUIK_ERR_DEF(ERR_OF_INIT_NO_OPROM, "no OF /openprom")                \
+   QUIK_ERR_DEF(ERR_OF_INIT_NO_ROOT, "no OF /")                         \
    QUIK_ERR_DEF(ERR_DEV_OPEN, "cannot open device")                     \
    QUIK_ERR_DEF(ERR_DEV_SHORT_READ, "short read on device")             \
    QUIK_ERR_DEF(ERR_PART_NOT_MAC, "partitioning not macintosh")         \
