@@ -23,7 +23,8 @@ a number of important ways:
    a) It tries working around OF 1.0.5 bugs but I've no
       systems to test with at the moment.
    b) It works around PB3400c hangs with media bay ATA
-      discovery handling with 2.6 kernels.
+      discovery handling with 2.6 kernels with no
+      ATA/ATAPI devices in the mediabay.
    c) Works around OF 2.0.1 setprop bugs that manifest
       themselves as the kernel not finding its initrd.
 4) It builds with a recent toolchain (GCC 4.4)

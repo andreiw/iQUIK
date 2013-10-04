@@ -7,6 +7,9 @@ You can boot from:
 * Floppy
 * Internal IDE HD
 * PCMCIA CF
-* CD is currently untested until I get a drive
+* CD boot is untested
 
 Nothing crazy is needed. Just follow the directions in README.
+
+I have tested that with the CD in the media bay I can boot a kernel
+just fine (and the CD is recognised).
