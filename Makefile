@@ -1,6 +1,5 @@
 DIRS=	util iquik preboot installer
 .EXPORT_ALL_VARIABLES:
-CC=gcc
 
 all clean dep depend:
 	@for I in $(DIRS); do cd $$I; make $@ || exit 1; cd ..; done

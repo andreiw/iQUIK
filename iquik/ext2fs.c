@@ -739,7 +739,7 @@ quik_err_t ext2fs_find_file1(const char *currpath,
 
       /* Read in the symlink and follow it.  */
       if (type == FILETYPE_SYMLINK) {
-         char *symlink;
+         char *symlink = NULL;
 
          /* Test if the symlink does not loop.  */
          if (++symlinknest == 8) {

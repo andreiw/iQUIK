@@ -6,6 +6,8 @@ CFLAGS = -I../include -O2 -D__NO_STRING_INLINES -nostdlib -fno-builtin -Werror -
 ASFLAGS=-D__ASSEMBLY__ -I../include
 LDFLAGS=-T ld.script -N -Ttext 0x3e0000
 NAME = iquik
+CC = $(CROSS)gcc
+LD = $(CROSS)ld
 
 all: $(NAME).b
 
@@ -33,7 +35,7 @@ $(NAME): $(OBJ)
 	$(LD) $(LDFLAGS) -Bstatic -o $@ $^
 
 clean:
-	$(RM) *.o $(NAME) $(NAME).b core *~ *.d
+	@rm -f *.o $(NAME) $(NAME).b core *~ *.d
 
 $(NAME).b: $(NAME)
 	../util/elfextract $< $@

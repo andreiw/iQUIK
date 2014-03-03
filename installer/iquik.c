@@ -31,12 +31,14 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <unistd.h>
+#include <layout.h>
 
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <dirent.h>
 #include <asm/mac-part.h>
 #include <layout.h>
+#include <endian.h>
 
 #define DFL_BOOTBLOCK   "/boot/iquik.b"
 
@@ -92,14 +94,16 @@ void read_sb(char *device,         /* IN */
    if ((fd = open(device, O_RDONLY)) == -1) {
       fatal("Can't open '%s'", device);
    }
+
    if (read(fd, buff, sizeof (buff)) != sizeof (buff)) {
       fatal("Error reading '%s' (block 0)", device);
    }
-   if (md->signature != MAC_DRIVER_MAGIC) {
+
+   if (be16toh(md->signature) != MAC_DRIVER_MAGIC) {
       fatal("'%s' is not a mac-formatted disk", device);
    }
 
-   *secsize = md->block_size;
+   *secsize = be16toh(md->block_size);
    maxpart = 1;
    *doff = 0;
    for (part = 1; part <= maxpart; ++part) {
@@ -108,15 +112,15 @@ void read_sb(char *device,         /* IN */
          fatal("Error reading partition map from '%s'", device);
       }
 
-      if (mp->signature != MAC_PARTITION_MAGIC) {
+      if (be16toh(mp->signature) != MAC_PARTITION_MAGIC) {
          break;
       }
 
       if (part == 1) {
-         maxpart = mp->map_count;
+         maxpart = be32toh(mp->map_count);
       }
 
-      else if (maxpart != mp->map_count) {
+      else if (maxpart != be32toh(mp->map_count)) {
          break;
       }
 
@@ -124,7 +128,7 @@ void read_sb(char *device,         /* IN */
 
          /* This is the one we want */
          *part_index = part;
-         *doff = mp->start_block * (*secsize >> 9);
+         *doff = be32toh(mp->start_block) * (*secsize >> 9);
          return;
       }
    }
@@ -166,12 +170,12 @@ void make_bootable(char *device,
    }
 
    mp = (struct mac_partition *) buff;
-   mp->status |= STATUS_BOOTABLE;
+   mp->status |= htobe32(STATUS_BOOTABLE);
    mp->boot_start = 0;
-   mp->boot_size = stage_size;
-   mp->boot_load = load_base;
+   mp->boot_size = htobe32(stage_size);
+   mp->boot_load = htobe32(load_base);
    mp->boot_load2 = 0;
-   mp->boot_entry = load_base;
+   mp->boot_entry = htobe32(load_base);
    mp->boot_entry2 = 0;
    strncpy(mp->processor, "PowerPC", sizeof(mp->processor));
    if (lseek(fd, part_index * secsize, 0) < 0) {
@@ -395,27 +399,26 @@ int main(int argc,char **argv)
    ssize_t stage_size = 0;
 
    /*
-    * Test if we're being run on a chrp machine.  We don't
-    * need to be run on a chrp machine so print a message
-    * to this effect and exit gracefully.
+    * Test if we're being run on a CHRP machine.  We don't
+    * need to be run on a CHRP machine, as the later can
+    * run the ELF directly.
     *  -- Cort
     */
    {
       FILE *f;
       char s[256];
-      if ((f = fopen("/proc/cpuinfo","r")) == NULL)
-      {
+      char *ps;
+
+      if ((f = fopen("/proc/cpuinfo","r")) == NULL) {
          fprintf(stderr,"Could not open /proc/cpuinfo!\n");
          exit(1);
       }
 
-      while (!feof(f))
-      {
-         fgets(s, 256, f);
-         if (!strncmp(s,"machine\t\t: CHRP", 15))
-         {
-            fprintf(stderr, "iQUIK does not need to be run "
-                    "on CHRP machines.\n");
+      while (!feof(f)) {
+         ps = fgets(s, 256, f);
+         if (ps != NULL &&
+             !strncmp(ps, "machine\t\t: CHRP", 15)) {
+            fprintf(stderr, "iQUIK must be installed differently on CHRP machines\n");
             exit(0);
          }
       }

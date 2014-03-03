@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <inttypes.h>
 #include <layout.h>
+#include <endian.h>
 #include "elf.h"
 
 FILE *fi, *fo;
@@ -21,12 +22,16 @@ rd(void *buf, int len)
    int nr;
 
    nr = fread(buf, 1, len, fi);
-   if (nr == len)
+   if (nr == len) {
       return;
-   if (ferror(fi))
+   }
+
+   if (ferror(fi)) {
       fprintf(stderr, "%s: read error\n", ni);
-   else
+   } else {
       fprintf(stderr, "%s: short file\n", ni);
+   }
+
    exit(1);
 }
 
@@ -65,18 +70,19 @@ main(int ac, char **av)
       exit(1);
    }
 
-   fseek(fi, eh.e_phoff, 0);
+   fseek(fi, be32toh(eh.e_phoff), 0);
    phsize = 0;
-   for (i = 0; i < eh.e_phnum; ++i) {
+   for (i = 0; i < be16toh(eh.e_phnum); ++i) {
       rd(&ph, sizeof(ph));
-      if (ph.p_type != PT_LOAD)
+      if (be32toh(ph.p_type) != PT_LOAD)
          continue;
       if (phsize == 0 || prevaddr == 0) {
-         phoffset = ph.p_offset;
-         phsize = ph.p_filesz;
+         phoffset = be32toh(ph.p_offset);
+         phsize = be32toh(ph.p_filesz);
       } else
-         phsize = ph.p_offset + ph.p_filesz - phoffset;
-      prevaddr = ph.p_vaddr;
+         phsize = be32toh(ph.p_offset) +
+           be32toh(ph.p_filesz) - phoffset;
+      prevaddr = be32toh(ph.p_vaddr);
    }
    if (phsize == 0) {
       fprintf(stderr, "%s: doesn't have a loadable segment\n", ni);
@@ -84,8 +90,8 @@ main(int ac, char **av)
    }
 
    if (phsize > IQUIK_SIZE) {
-      fprintf(stderr, "%s grew beyond IQUIK_SIZE (0x%x instead of 0x%x)\n",
-             phsize, IQUIK_SIZE, ni);
+      fprintf(stderr, "%s grew beyond IQUIK_SIZE (0x%lx instead of 0x%lx)\n",
+              ni, (unsigned long) phsize, (unsigned long) IQUIK_SIZE);
       exit(1);
    }
 
