@@ -35,7 +35,7 @@ a number of important ways:
 4) More maintainable
    * Doesn't need libext2fs
    * Builds with a recent toolchain (GCC 4.4, 4.8)
-   * Cross compile support (on an endianness).
+   * Cross compile support (on any endianness).
 
 
 Support
