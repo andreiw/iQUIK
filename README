@@ -11,31 +11,31 @@ are < 3.0.
 
 [ As a proud owner of a '97 PB 3400c. iQUIK has been my
   painful journey towards running first 2.4 with initrd,
-  and then 2.6 kernels ]
+  and then 2.6 and 3.0 kernels ]
 
 iQUIK differs from the plain-jane unmaintained QUIK in
 a number of important ways:
 
-1) It can boot large non-2.2 kernels.
-2) It can load an initrd.
-3) Introduces a layer to shim OF accesses during kernel
-   bootup, to work around OF bugs:
-   a) It works around OF 1.0.5 bugs.
-   b) It works around PB3400c hangs with media bay ATA
-      discovery handling with 2.6 kernels with no
-      ATA/ATAPI devices in the mediabay.
-   c) Works around OF 2.0.1 setprop bugs that manifest
-      themselves as the kernel not finding its initrd.
-4) It builds with a recent toolchain (GCC 4.4)
-5) It doesn't require libext2fs, and yet supports
-   symlinks and listing files via "!ls"
-6) It can boot from a floppy.
-7) It can boot from anything via partition zero.
-8) It drops the first stage loader and the finicky block maps,
-   and drops the support for loading arbitrary blocks.
-9) It can boot a kernel with an initrd without a quik.conf.
-10) Code is significantly less crufty, although could still use
-    quite a bit of work.
+1) Up to date.
+   * Boots all kernels from 2.2 up.
+   * Initrd support from config file and UI.
+2) Easier to use, harder to break.
+   * Doesn't use block maps or the first stage loader,
+     which would break if you moved anything around on FS
+   * Can boot from floppy (i.e. rescue disk).
+   * Can boot from anything via partition zero
+     (i.e. :0/%BOOT).
+   * Symlink support, listing files, etc.
+   * Preboot script support for rescue disks, install media.
+3) Better firmware support.
+   * Works around OF 1.0.5 bugs
+   * Works around OF 2.0.1 setprop bugs
+     (i.e. the initrd not found bug)
+   * Works around 3400c hangs with media bay without CDROM.
+4) More maintainable
+   * Doesn't need libext2fs
+   * Builds with a recent toolchain (GCC 4.4, 4.8)
+   * Cross compile support (on an endianness).
 
 
 Support
@@ -45,6 +45,7 @@ Meant for OldWorlds in general, it has only been tested on:
 1) PowerBook 3400c (OF 2.0.1, 603e)
 2) PowerBook Wallstreet II (PDQ) (OF 2.0.1, G3)
 3) UMAX StormSurge (OF 1.0.5, 604e)
+4) QEMU (OpenBIOS 1.1 r1272+).
 
 It would be nice to test with 2.4 and maybe even a NewWorld,
 although the later isn't a goal. See distrib/ for docs on getting
@@ -162,6 +163,11 @@ use the '-b' flag:
 
 $ iquik -b /my/hacked/iquik.b
 
+If you want iquik to evaluate a forth script before looking for
+the boot-file:
+
+$ iquik -p /my/special/preboot/script.of
+
 NOTE: the 'iquik' tool doesn't set the NVRAM variables itself. You
 need to do that yourself.
 
@@ -255,7 +261,7 @@ The next items I'll probably look at, are (in no order):
 3) Allow specifying a whole disk file system (need partitions today).
 4) Build an XCOFF variant for loading from iso9660, enet, etc.
 5) Check model and apply nvramrc patches
-
+6) BSD kernel support.
 
 Contact Info
 ============

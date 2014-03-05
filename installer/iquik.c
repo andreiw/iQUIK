@@ -39,6 +39,7 @@
 #include <mac-part.h>
 #include <layout.h>
 #include <endian.h>
+#include <stdbool.h>
 
 #define DFL_BOOTBLOCK   "/boot/iquik.b"
 
@@ -52,8 +53,8 @@
 #define MAJOR(dev)      ((dev) >> 8)
 #endif
 
-static int verbose = 0;
-static int test_mode = 0;
+static bool verbose = false;
+static bool test_mode = false;
 
 
 ssize_t do_write(int fd, const void *buf, size_t count)
@@ -276,7 +277,7 @@ void install_stage(char *device,
    }
 
    if (verbose) {
-      printf("Code size: %u\nStage size: %u bytes\n",
+      printf("Code size: %lu\nStage size: %lu bytes\n",
              code_size, *stage_size);
    }
 
@@ -460,16 +461,14 @@ int main(int argc,char **argv)
       char *ps;
 
       if ((f = fopen("/proc/cpuinfo","r")) == NULL) {
-         fprintf(stderr,"Could not open /proc/cpuinfo!\n");
-         exit(1);
+         fatal("Could not open /proc/cpuinfo!\n");
       }
 
       while (!feof(f)) {
          ps = fgets(s, 256, f);
          if (ps != NULL &&
              !strncmp(ps, "machine\t\t: CHRP", 15)) {
-            fprintf(stderr, "iQUIK must be installed differently on CHRP machines\n");
-            exit(0);
+            fatal("iQUIK must be installed differently on CHRP machines\n");
          }
       }
    }
