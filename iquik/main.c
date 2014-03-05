@@ -628,7 +628,7 @@ iquik_main(void *a1,
 
    /* Run the preboot script if there is one. */
    if (strlen(preboot_script) != 0) {
-      printk("Invoking preboot script...");
+      printk("Invoking preboot script...\n");
       call_prom("interpret", 1, 1, preboot_script);
    }
 

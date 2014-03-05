@@ -298,7 +298,7 @@ void install_stage(char *device,
                filename);
       }
 
-      if (magic != PREBOOT_MAGIC) {
+      if (be32toh(magic) != PREBOOT_MAGIC) {
          fatal("'%s' has bad preboot magic 0x%08x, preboot scripts unsupported\n",
                filename, magic);
       }
