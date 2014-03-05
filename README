@@ -82,6 +82,9 @@ After fetching the sources.
 
 $ make && make install
 
+If building on non-PowerPC hosts:
+
+$ CROSS=powerpc-linux-gnu- make
 
 The boot flow
 =============
