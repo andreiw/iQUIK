@@ -1,0 +1,181 @@
+Index: forth/debugging/client.fs
+===================================================================
+--- forth/debugging/client.fs	(revision 1272)
++++ forth/debugging/client.fs	(working copy)
+@@ -28,7 +28,13 @@
+ 0 state-valid !
+ 
+ variable want-bootcode
++variable bootcode-base
++variable bootcode-size
++variable bootcode-entry
+ 0 want-bootcode !
++0 bootcode-base !
++0 bootcode-size !
++0 bootcode-entry !
+ 
+ variable file-size
+ 
+Index: libopenbios/bootcode_load.c
+===================================================================
+--- libopenbios/bootcode_load.c	(revision 1272)
++++ libopenbios/bootcode_load.c	(working copy)
+@@ -12,13 +12,11 @@
+ #define printf printk
+ #define debug printk
+ 
+-#define OLDWORLD_BOOTCODE_BASEADDR	(0x3f4000)
+-
+ int 
+ bootcode_load(ihandle_t dev)
+ {
+     int retval = -1, count = 0, fd;
+-    unsigned long bootcode, loadbase, offset;
++    unsigned long bootcode, loadbase, offset, loadsize, entry;
+ 
+     /* Mark the saved-program-state as invalid */
+     feval("0 state-valid !");
+@@ -33,34 +31,59 @@
+     loadbase = POP();
+     
+ #ifdef CONFIG_PPC
+-    /* ...except that QUIK (the only known user of %BOOT to date) is built
+-       with a hard-coded address of 0x3f4000. Let's just use this for the
+-       moment on both New World and Old World Macs, allowing QUIK to also
+-       work under a New World Mac. If we find another user of %BOOT we can
+-       rethink this later. PReP machines should be left unaffected. */
++    /*
++     * Apple OF does not honor load-base and instead uses pmBootLoad
++     * value from the boot partition descriptor.
++     *
++     * Tested with:
++     *   a debian image with QUIK installed
++     *   a debian image with iQUIK installed (https://github.com/andreiw/quik)
++     *   an IQUIK boot floppy
++     *   a NetBSD boot floppy (boots stage 2)
++     */
+     if (is_apple()) {
+-        loadbase = OLDWORLD_BOOTCODE_BASEADDR;
++      feval("bootcode-base @");
++      loadbase = POP();
++      feval("bootcode-size @");
++      loadsize = POP();
++      feval("bootcode-entry @");
++      entry = POP();
++
++      printk("bootcode base 0x%lx, size 0x%lx, entry 0x%lx\n",
++             loadbase, loadsize, entry);
++    } else {
++      entry = loadbase;
++
++      /* Load as much as we can. */
++      loadsize = 0;
+     }
+ #endif
+     
+     bootcode = loadbase;
+     offset = 0;
+     
+-    while(1) {
++    if (loadsize) {
++      if (seek_io(fd, offset) != -1)
++        count = read_io(fd, (void *) bootcode, loadsize);
++    } else {
++      while(1) {
+         if (seek_io(fd, offset) == -1)
+-            break;
++          break;
+         count = read_io(fd, (void *)bootcode, 512);
+         offset += count;
+         bootcode += count;
++      }
+     }
+ 
+     /* If we didn't read anything then exit */
+     if (!count) {
+         goto out;
+     }
++
++    printk("entry = 0x%lx\n", entry);
+     
+     /* Initialise saved-program-state */
+-    PUSH(loadbase);
++    PUSH(entry);
+     feval("saved-program-state >sps.entry !");
+     PUSH(offset);
+     feval("saved-program-state >sps.file-size !");
+Index: libopenbios/load.c
+===================================================================
+--- libopenbios/load.c	(revision 1272)
++++ libopenbios/load.c	(working copy)
+@@ -1,6 +1,6 @@
+ /*
+  *   Creation Date: <2010/06/25 20:00:00 mcayland>
+- *   Time-stamp: <2010/06/25 20:00:00 mcayland>
++ *   Time-stamp: <2014-03-05 03:18:49 andreiw>
+  *
+  *	<load.c>
+  *
+Index: packages/mac-parts.c
+===================================================================
+--- packages/mac-parts.c	(revision 1272)
++++ packages/mac-parts.c	(working copy)
+@@ -1,6 +1,6 @@
+ /*
+  *   Creation Date: <2003/12/04 17:07:05 samuel>
+- *   Time-stamp: <2004/01/07 19:36:09 samuel>
++ *   Time-stamp: <2014-03-05 03:42:07 andreiw>
+  *
+  *	<mac-parts.c>
+  *
+@@ -237,6 +237,19 @@
+ 	    size = (long long)__be32_to_cpu(par.pmPartBlkCnt) * bs;	
+ 	    
+ 	    if (want_bootcode) {
++		ucell loadaddr = 0;
++		ucell loadsize = 0;
++		ucell loadentry = 0;
++
++		loadaddr = __be32_to_cpu(par.pmBootLoad);
++		loadsize = __be32_to_cpu(par.pmBootSize);
++		loadentry = __be32_to_cpu(par.pmBootEntry);
++		PUSH(loadaddr);
++		feval("bootcode-base !");
++		PUSH(loadsize);
++		feval("bootcode-size !");
++		PUSH(loadentry);
++		feval("bootcode-entry !");
+ 		offs += (long long)__be32_to_cpu(par.pmLgBootStart) * bs;
+ 		size = (long long)__be32_to_cpu(par.pmBootSize);
+ 	    }
+@@ -249,6 +262,10 @@
+ 	    di->size_hi = size >> BITS;
+ 	    di->size_lo = size & (ucell) -1;
+ 
++	    if (want_bootcode) {
++	      goto out;
++	    }
++
+ 	    /* We have a valid partition - so probe for a filesystem at the current offset */
+ 	    DPRINTF("mac-parts: about to probe for fs\n");
+ 	    DPUSH( offs );
+@@ -277,7 +294,7 @@
+ 		
+ 		    /* If we have been asked to open a particular file, interpose the filesystem package with 
+ 		    the passed filename as an argument */
+-		    if (!want_bootcode && strlen(argstr)) {
++		    if ( strlen(argstr)) {
+ 			    push_str( argstr );
+ 			    PUSH_ph( ph );
+ 			    fword("interpose");
+@@ -286,6 +303,10 @@
+ 		    goto out;
+ 	    } else {
+ 		    DPRINTF("mac-parts: no filesystem found on partition %d; bypassing misc-files interpose\n", parnum);
++
++		    /* Fail out instead of having macparts_load get called uselessly, allowing trying the next
++		       boot device */
++		    ret = 0;
+ 	    }
+ 	}
+ 	    

@@ -12,7 +12,7 @@
 \
 \ OpenBIOS has no FD support so just attach it to first ATA channel, like so.
 \
-\ $ ./ppc-softmmu/qemu-system-ppc  -hda floppy.img -hdb install.img -serial stdin
+\ $ qemu-system-ppc  -hda floppy.img -hdb install.img -serial stdin
 \
 \ [ install.img is assumed to contain the Debian wheezy bits from
 \   http://ftp.nl.debian.org/debian/dists/wheezy/main/installer-powerpc/current/images/powerpc/hd-media/
@@ -43,7 +43,7 @@ setenv load-base 3e0000
 setenv boot-file /pci/mac-io/ata-1/disk@1:1/yaboot.conf
 
 \
-\ OpenBIOS doesn't know how to parse the MAC "partition-zero"
+\ OpenBIOS doesn't know how to parse correctly the MAC "partition-zero"
 \ boot descriptor, so we'll manually load it. XXX:2 refers
 \ to the Apple_Boostrap partition on -hda, which in the floppy.img
 \ image is the first parition (wonky indexing... yes).
