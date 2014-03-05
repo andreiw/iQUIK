@@ -35,11 +35,11 @@ OBJ = crt0.o elf.o printf.o malloc.o main.o cmdline.o disk.o file.o \
 
 -include $(OBJ:.o=.d)
 
-$(NAME): $(OBJ)
+$(NAME).elf: $(OBJ)
 	$(LD) $(LDFLAGS) -Bstatic -o $@ $^
 
 clean:
-	@rm -f *.o $(NAME) $(NAME).b core *~ *.d
+	@rm -f *.o $(NAME).elf $(NAME).b core *~ *.d
 
-$(NAME).b: $(NAME)
+$(NAME).b: $(NAME).elf
 	../util/elfextract $< $@
