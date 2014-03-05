@@ -2,7 +2,7 @@
 ## Linux Loader for Macintosh
 ##
 
-CFLAGS = -I../include -O2 -D__NO_STRING_INLINES -nostdlib -fno-builtin -Werror -Wall
+CFLAGS = -I../include -Os -D__NO_STRING_INLINES -nostdlib -fno-builtin -Werror -Wall
 ASFLAGS=-D__ASSEMBLY__ -I../include
 
 #
@@ -17,7 +17,7 @@ all: $(NAME).b
 
 OBJ = crt0.o elf.o printf.o malloc.o main.o cmdline.o disk.o file.o \
       cfg.o prom.o cache.o string.o setjmp.o util.o part.o \
-      ext2fs.o
+      crtsavres.o ext2fs.o
 
 %.o: %.c
 	$(CC) -c -MMD $(CFLAGS) $<
