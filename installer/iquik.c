@@ -327,7 +327,11 @@ void install_stage(char *device,
 
    free(buff);
    close(fd);
-   fclose(fpp);
+
+   if (preboot != NULL) {
+      fclose(fpp);
+   }
+
    fclose(fp);
 }
 
