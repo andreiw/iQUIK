@@ -87,6 +87,8 @@ typedef struct {
    QUIK_ERR_DEF(ERR_KERNEL_RETURNED, "kernel returned")                 \
    QUIK_ERR_DEF(ERR_KERNEL_OLD_BIG, "pre-2.4 kernel too large ")        \
    QUIK_ERR_DEF(ERR_NO_MEM, "malloc failed")                            \
+   QUIK_ERR_DEF(ERR_CONFIG_NOT_FOUND, "no configuration file found")	\
+   QUIK_ERR_DEF(ERR_CONFIG_NO_DEV, "bad boot-file or boot parameters")	\
    QUIK_ERR_DEF(ERR_INVALID, "invalid error, likely a bug")             \
 
 #define QUIK_ERR_DEF(e, s) e,
@@ -112,6 +114,7 @@ typedef struct {
 #define TRIED_AUTO            (1 << 4)
 #define BOOT_PRE_2_4          (1 << 5)
 #define SHIM_OF               (1 << 6)
+#define WITH_PREBOOT          (1 << 7)
    unsigned flags;
 
    /* Config file path. E.g. /etc/quik.conf */
@@ -144,8 +147,11 @@ typedef struct {
    length_t initrd_len;
 } boot_info_t;
 
+typedef int key_t;
+#define KEY_NONE (-1)
+
 void cmd_init();
-void cmd_edit(void (*tabfunc)(boot_info_t *), boot_info_t *bi, int c);
+void cmd_edit(void (*tabfunc)(boot_info_t *), boot_info_t *bi, key_t c);
 void cmd_fill(const char *d);
 
 extern char cbuff[];

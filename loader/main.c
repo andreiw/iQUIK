@@ -36,7 +36,40 @@
 static boot_info_t bi;
 
 #define DEFAULT_TIMEOUT -1
+#define PREBOOT_TIMEOUT 50
 #define PROMPT "boot: "
+
+
+static key_t
+wait_for_key(int timeout,
+	     key_t timeout_key)
+{
+   int end;
+   int beg = 0;
+   key_t c = KEY_NONE;
+
+   beg = get_ms();
+   if (timeout > 0) {
+     end = beg + 100 * timeout;
+     do {
+        c = nbgetchar();
+     } while (c == KEY_NONE && get_ms() <= end);
+   }
+
+   /*
+    * Useful to implement 'default' keystroke, such
+    * as pressing enter.
+    */
+   if (c == KEY_NONE) {
+      return timeout_key;
+   }
+
+   if (c == '\r') {
+      c = '\n';
+   }
+
+   return c;
+}
 
 
 static void
@@ -223,8 +256,7 @@ load_config(boot_info_t *bi)
 
    if (!bi->default_device ||
        bi->default_part == 0) {
-      printk("Skipping loading configuration file due to missing or invalid configuration\n");
-      return ERR_NONE;
+      return ERR_CONFIG_NO_DEV;
    }
 
    path.device = bi->default_device;
@@ -241,10 +273,9 @@ load_config(boot_info_t *bi)
       n++;
    }
 
+   /* Set by file_len. */
    if (err != ERR_NONE) {
-
-      /* Set by file_len. */
-      return err;
+      return ERR_CONFIG_NOT_FOUND;
    }
 
    buf = malloc(len);
@@ -267,7 +298,7 @@ load_config(boot_info_t *bi)
    bi->flags |= CONFIG_VALID;
    p = cfg_get_strg(0, "init-code");
    if (p) {
-      call_prom("interpret", 1, 1, p);
+      prom_interpret(p);
    }
 
    p = cfg_get_strg(0, "init-message");
@@ -315,7 +346,7 @@ bang_commands(boot_info_t *bi,
    } else if (!memcmp(args, "cat ", 4)) {
       command_cat(bi, args + 3);
    } else if (!memcmp(args, "of ", 3)) {
-      call_prom("interpret", 1, 1, args + 3);
+      prom_interpret(args + 3);
       printk("\n");
    } else {
       printk("Available commands: !debug, !shim, !halt, !ls, !cat, !of\n");
@@ -333,11 +364,9 @@ get_params(boot_info_t *bi,
 {
    char *p;
    char *q;
-   int c;
    int n;
-   int end;
    char *endp;
-   int beg = 0;
+   key_t lastkey;
    char *label = NULL;
    int timeout = DEFAULT_TIMEOUT;
 
@@ -372,21 +401,12 @@ get_params(boot_info_t *bi,
    }
 
    printk(PROMPT);
-   c = -1;
+   lastkey = KEY_NONE;
    if (timeout != -1) {
-      beg = get_ms();
-      if (timeout > 0) {
-         end = beg + 100 * timeout;
-         do {
-            c = nbgetchar();
-         } while (c == -1 && get_ms() <= end);
-      }
-      if (c == -1 || c == '\r') {
-         c = '\n';
-      }
+      lastkey = wait_for_key(timeout, '\n');
    }
 
-   if (c == '\n') {
+   if (lastkey == '\n') {
       printk("%s", *kernel);
       if (*params) {
          printk(" %s", *params);
@@ -397,7 +417,7 @@ get_params(boot_info_t *bi,
       *kernel = NULL;
 
       cmd_init();
-      cmd_edit(maintabfunc, bi, c);
+      cmd_edit(maintabfunc, bi, lastkey);
       printk("\n");
 
       if (cbuff[0] == '!') {
@@ -628,13 +648,22 @@ iquik_main(void *a1,
 
    /* Run the preboot script if there is one. */
    if (strlen(preboot_script) != 0) {
-      printk("Invoking preboot script...\n");
-      call_prom("interpret", 1, 1, preboot_script);
+      printk("\nPress any key in %u tsecs to skip preboot script ... ", PREBOOT_TIMEOUT);
+      if (wait_for_key(PREBOOT_TIMEOUT, KEY_NONE) == KEY_NONE) {
+         printk("running\n");
+         bi.flags |= WITH_PREBOOT;
+         prom_interpret(preboot_script);
+      } else {
+         printk("skipped!\n");
+      }
    }
 
    malloc_init();
    disk_init(&bi);
-   load_config(&bi);
+   err = load_config(&bi);
+   if (err != ERR_NONE) {
+      printk("No bootable images: %r\n", err);
+   }
 
    for (;;) {
       params = NULL;

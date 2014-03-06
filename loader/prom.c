@@ -145,7 +145,7 @@ putchar(int c)
 }
 
 
-int
+key_t
 getchar()
 {
    char ch;
@@ -157,7 +157,7 @@ getchar()
 
    while ((r = (int) call_prom("read", 3, 1, prom_stdin, &ch, 1)) == 0)
       ;
-   return r > 0? ch: -1;
+   return r > 0? ch: KEY_NONE;
 }
 
 
@@ -170,7 +170,7 @@ nbgetchar()
       return -1;
    }
 
-   return (int) call_prom("read", 3, 1, prom_stdin, &ch, 1) > 0? ch: -1;
+   return (int) call_prom("read", 3, 1, prom_stdin, &ch, 1) > 0? ch: KEY_NONE;
 }
 
 
@@ -376,6 +376,13 @@ prom_pause(char *message)
    printk("%s", message);
    call_prom("enter", 0, 0);
    printk("\n");
+}
+
+
+void
+prom_interpret(char *buf)
+{
+  call_prom("interpret", 1, 1, buf);
 }
 
 

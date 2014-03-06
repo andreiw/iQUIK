@@ -53,15 +53,37 @@ disk_init(boot_info_t *bi)
 {
    char *p;
 
+   if (bi->flags & WITH_PREBOOT)  {
+
+      /*
+       * If we ran a preboot script, ignore all
+       * passed parameters and treat the set
+       * boot-file as bootargs.
+       */
+      prom_get_options("boot-file", bi->of_bootargs, sizeof(bi->of_bootargs));
+      bi->bootargs = bi->of_bootargs;
+   }
+
    bi->default_device = bi->bootargs;
    word_split(&bi->default_device, &bi->bootargs);
 
    if (!bi->default_device) {
-      printk("Hmmm, no booting device passed as argument... ");
       prom_get_options("boot-file", bi->bootfile, sizeof(bi->bootfile));
+
+      if (bi->flags & WITH_PREBOOT) {
+         printk("Preboot script didn't set boot-file?");
+	 return;
+      }
+
+      printk("Hmmm, no booting device passed as argument... ");
    } else {
       bi->default_device = chomp(bi->default_device);
       if (memcmp(bi->default_device, "--", 2) == 0) {
+	 if (bi->flags & WITH_PREBOOT) {
+	    printk("Preboot script didn't set boot-file?");
+	    return;
+	 }
+
          printk("Default booting device requested... ");
          prom_get_options("boot-file", bi->bootfile, sizeof(bi->bootfile));
       }

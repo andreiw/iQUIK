@@ -29,7 +29,7 @@ void cmd_init()
    cbuff[0] = 0;
 }
 
-void cmd_edit(void (*tabfunc)(boot_info_t *), boot_info_t *bi, int c)
+void cmd_edit(void (*tabfunc)(boot_info_t *), boot_info_t *bi, key_t c)
 {
    int x;
 
@@ -37,9 +37,9 @@ void cmd_edit(void (*tabfunc)(boot_info_t *), boot_info_t *bi, int c)
       ;
    prom_print(cbuff);
 
-   if (c == -1)
+   if (c == KEY_NONE)
       c = getchar();
-   while (c != -1 && c != '\n' && c != '\r') {
+   while (c != KEY_NONE && c != '\n' && c != '\r') {
       if (c == '\t' && tabfunc)
          (*tabfunc)(bi);
       if (c == '\b' || c == 0x7F) {

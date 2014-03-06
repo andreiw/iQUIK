@@ -23,13 +23,14 @@ void prom_exit(void);
 void *call_prom(char *service, int nargs, int nret, ...);
 void prom_print(char *msg);
 int putchar(int c);
-int getchar(void);
-int nbgetchar(void);
+key_t getchar(void);
+key_t nbgetchar(void);
 void prom_get_chosen(char *name, char *buf, int buflen);
 void prom_get_options(char *name, char *buf, int buflen);
 void prom_map(unsigned char *addr, unsigned len);
 int get_ms(void);
 void prom_pause(char *message);
+void prom_interpret(char *buf);
 void prom_ensure_claimed(void *virt, unsigned int size);
 void prom_release(void *virt, unsigned int size);
 void *prom_claim_chunk(void *virt,
