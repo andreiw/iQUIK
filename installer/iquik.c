@@ -300,7 +300,7 @@ void install_stage(char *device,
 
       if (be32toh(magic) != PREBOOT_MAGIC) {
          fatal("'%s' has bad preboot magic 0x%08x, preboot scripts unsupported\n",
-               filename, magic);
+               filename,  be32toh(magic));
       }
 
       rc = fread(buff + code_size, 1, *stage_size - code_size - 1, fpp);

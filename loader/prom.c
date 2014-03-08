@@ -331,8 +331,27 @@ prom_init(void (*pp)(void *),
    }
 
    prom_get_chosen("bootargs", bi->of_bootargs, sizeof(bi->of_bootargs));
-   printk("Passed arguments: '%s'\n", bi->of_bootargs);
    bi->bootargs = bi->of_bootargs;
+
+   /* Run the preboot script if there is one. */
+   if (strlen(preboot_script) != 0) {
+      printk("\nPress any key in %u secs to skip preboot script ... ",
+             TIMEOUT_TO_SECS(PREBOOT_TIMEOUT));
+      if (wait_for_key(PREBOOT_TIMEOUT, KEY_NONE) == KEY_NONE) {
+         printk("running\n");
+         bi->flags |= WITH_PREBOOT;
+         prom_interpret(preboot_script);
+
+         /*
+          * Forget about the passed args, presumably boot-file was set
+          * by the script (why else would you use it)?
+          */
+         prom_get_options("boot-file", bi->of_bootargs, sizeof(bi->of_bootargs));
+         bi->bootargs = bi->of_bootargs;
+      } else {
+         printk("skipped!\n");
+      }
+   }
 
    of_shim_state.bi = bi;
    return ERR_NONE;

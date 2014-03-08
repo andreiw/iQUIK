@@ -1,0 +1,64 @@
+: bx-boot-opts 4 ; ( unit = 100 ms )
+: bx-boot-wait d# 100 ;
+: bx-boot-defopt 1 ;
+: bx-display-menu ( -- )
+  ." 3400c boot menu"                cr
+  ." 1: ATA boot"                    cr
+  ." 2: Top PCMCIA installer"        cr
+  ." 3: Top PCMCIA installer expert" cr
+  ." 4: Top PCMCIA boot"             cr
+;
+: bx-boot-choose ( num -- )
+  case
+    1 of " ata0/ata-disk@0:4" endof
+    2 of " ata3/pccard45,401@0:3/installer/quik.conf" endof
+    3 of " ata3/pccard45,401@0:3/installer/quik.conf expert" endof
+    4 of " ata3/pccard45,401@0:3" endof
+  endcase
+  " boot-file" $setenv
+;
+: bx-read-num ( wait-period max-boot-num def-opt -- boot-num )
+  1 ( loop-inc = 1 )
+  3 pick 0 do
+    0d emit
+    ." press 1-"
+    ( wait-period max-boot-num def-opt loop-inc )
+    2 pick ascii 0 + emit
+    dup 1 = if
+      ."  within "
+      3 pick i - d# 10 / .d
+      ."  seconds"
+    then
+    ."  (default: "
+    over ascii 0 + emit
+    ." ) :                   "
+    d# 100 ms
+    key? if
+       key
+       ( wait-period max-boot-num def-opt loop-inc key )
+       dup 0d = if ( return pressed )
+         drop leave
+       then
+
+       ascii 0 -
+       ( wait-period max-boot-num def-opt loop-inc num )
+       dup 0 5 pick
+       ( wait-period max-boot-num def-opt loop-inc num num 0 max-boot-num )
+       between if
+         rot drop swap leave
+       then
+
+       ( wait-period max-boot-num def-opt loop-inc num )
+       2drop 0 ( loop-inc = 0 )
+    then
+  dup +loop
+  drop
+  ( wait-period max-boot-num boot-num )
+  nip nip
+;
+erase-screen
+bx-display-menu
+bx-boot-wait bx-boot-opts bx-boot-defopt bx-read-num
+bx-boot-choose
+eject fd
+cr

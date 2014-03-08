@@ -1,0 +1,32 @@
+Using preboot scripts
+=====================
+
+Preboot scripts are a useful way of setting up some
+OpenFirmware state before iQUIK figures out what to
+boot.
+
+This is useful for rescue floppies (so you don't have
+to remember what disk to boot). This is also useful
+for install media, but the later hasn't been tried
+yet.
+
+You can use it to patch OF, but be aware that the preboot
+script is loaded as part of iQUIK. If you can't load
+and pass control to iQUIK, then your script can't run.
+
+Be careful around using '\' for comments. At least on the 3400c,
+this ends up eating the rest of the script following the slash.
+This is probably due to OF expecting Mac line endings '\r', instead
+of UNIX ones, but why bother? Just use '( blah )' and
+avoid grief...
+
+It's documented in the README, but here is an example command
+on installing a boot block with a preboot script:
+
+$ iquik -p /my/special/preboot/script.of
+
+The file 'example_menu' is an actual menu I use on a rescue floppy
+for my 3400c. Nothing too crazy. The code is basically the
+"grub on PPC -- a CHRP script" by Maurizio Boriani, from
+http://lists.gnu.org/archive/html/grub-devel/2005-05/msg00047.html
+

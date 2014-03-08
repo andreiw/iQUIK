@@ -33,44 +33,9 @@
 #include "file.h"
 #include <layout.h>
 
-static boot_info_t bi;
-
-#define DEFAULT_TIMEOUT -1
-#define PREBOOT_TIMEOUT 50
 #define PROMPT "boot: "
 
-
-static key_t
-wait_for_key(int timeout,
-	     key_t timeout_key)
-{
-   int end;
-   int beg = 0;
-   key_t c = KEY_NONE;
-
-   beg = get_ms();
-   if (timeout > 0) {
-     end = beg + 100 * timeout;
-     do {
-        c = nbgetchar();
-     } while (c == KEY_NONE && get_ms() <= end);
-   }
-
-   /*
-    * Useful to implement 'default' keystroke, such
-    * as pressing enter.
-    */
-   if (c == KEY_NONE) {
-      return timeout_key;
-   }
-
-   if (c == '\r') {
-      c = '\n';
-   }
-
-   return c;
-}
-
+static boot_info_t bi;
 
 static void
 maintabfunc(boot_info_t *bi)
@@ -641,22 +606,12 @@ iquik_main(void *a1,
    }
 
    printk("\niQUIK OldWorld Bootloader\n");
-   printk("Copyright (C) 2013 Andrei Warkentin <andrey.warkentin@gmail.com>\n");
+   printk("Copyright (C) 2014 Andrei Warkentin <andrey.warkentin@gmail.com>\n");
    if (bi.flags & SHIM_OF) {
       printk("This firmware requires a shim to work around bugs\n");
    }
 
-   /* Run the preboot script if there is one. */
-   if (strlen(preboot_script) != 0) {
-      printk("\nPress any key in %u tsecs to skip preboot script ... ", PREBOOT_TIMEOUT);
-      if (wait_for_key(PREBOOT_TIMEOUT, KEY_NONE) == KEY_NONE) {
-         printk("running\n");
-         bi.flags |= WITH_PREBOOT;
-         prom_interpret(preboot_script);
-      } else {
-         printk("skipped!\n");
-      }
-   }
+   printk("Passed arguments: '%s'\n", bi.bootargs);
 
    malloc_init();
    disk_init(&bi);

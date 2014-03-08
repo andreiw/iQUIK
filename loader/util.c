@@ -20,6 +20,7 @@
  */
 
 #include "quik.h"
+#include "prom.h"
 
 char *
 chomp(char *s)
@@ -298,4 +299,36 @@ noconv:
    }
 
    return 0L;
+}
+
+
+key_t
+wait_for_key(int timeout,
+	     key_t timeout_key)
+{
+   int end;
+   int beg = 0;
+   key_t c = KEY_NONE;
+
+   beg = get_ms();
+   if (timeout > 0) {
+     end = beg + 100 * timeout;
+     do {
+        c = nbgetchar();
+     } while (c == KEY_NONE && get_ms() <= end);
+   }
+
+   /*
+    * Useful to implement 'default' keystroke, such
+    * as pressing enter.
+    */
+   if (c == KEY_NONE) {
+      return timeout_key;
+   }
+
+   if (c == '\r') {
+      c = '\n';
+   }
+
+   return c;
 }

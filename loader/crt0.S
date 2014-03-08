@@ -56,5 +56,6 @@ _GLOBAL(_start)
 .section ".preboot"
 .global _preboot_script
 _preboot_script:
+        .p2align 4
 	.long   PREBOOT_MAGIC
 

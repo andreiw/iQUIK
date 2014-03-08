@@ -150,6 +150,10 @@ typedef struct {
 typedef int key_t;
 #define KEY_NONE (-1)
 
+#define DEFAULT_TIMEOUT -1
+#define PREBOOT_TIMEOUT 50
+#define TIMEOUT_TO_SECS(t) (t / 10)
+
 void cmd_init();
 void cmd_edit(void (*tabfunc)(boot_info_t *), boot_info_t *bi, key_t c);
 void cmd_fill(const char *d);
@@ -208,5 +212,7 @@ int strtol(const char *nptr,
 char *chomp(char *str);
 void word_split(char **linep,
                 char **paramsp);
+key_t wait_for_key(int timeout,
+                   key_t timeout_key);
 
 #endif /* QUIK_QUIK_H */
