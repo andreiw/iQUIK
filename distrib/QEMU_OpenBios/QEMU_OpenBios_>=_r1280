@@ -1,0 +1,16 @@
+iQUIK on QEMU with OpenBIOS r1280 and newer
+===========================================
+
+r1280 fully supports booting via partition-zero.
+
+http://git.qemu.org/?p=openbios.git;a=commit;h=1ac3fb92c109f5545d373a0576b87750c53cce19
+
+You should be able to boot as easy as:
+
+$ qemu-system-ppc -hda your_disk.img -prom-env "boot-file=hd:3"
+
+...provided your root file system is on the first partition following
+the Apple_Bootstrap partition. XXX:2 refers to the Apple_Bootstrap
+partition itself.
+
+Follow the directions in README.
