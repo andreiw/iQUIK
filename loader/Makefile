@@ -2,8 +2,12 @@
 ## Linux Loader for Macintosh
 ##
 
-CFLAGS = -I../include -Os -D__NO_STRING_INLINES -nostdlib -fno-builtin -Werror -Wall
-ASFLAGS=-D__ASSEMBLY__ -I../include
+ifeq ($(CONFIG_TINY), 1)
+BUILD_FLAGS = -DCONFIG_TINY
+endif
+
+CFLAGS = -I../include -Os -D__NO_STRING_INLINES -nostdlib -fno-builtin -Werror -Wall $(BUILD_FLAGS)
+ASFLAGS=-D__ASSEMBLY__ -I../include $(BUILD_FLAGS)
 
 #
 # -Ttext value must match ../include/layout.h.
@@ -13,7 +17,8 @@ NAME = iquik
 CC = $(CROSS)gcc
 LD = $(CROSS)ld
 
-all: $(NAME).b
+POSSIBLE_CLEAN=$(shell (echo '$(BUILD_FLAGS)' | cmp -s - build_flags && echo noclean) || ( echo '$(BUILD_FLAGS)' > build_flags && echo clean ))
+all: $(POSSIBLE_CLEAN) $(NAME).b
 
 OBJ = crt0.o elf.o printf.o malloc.o main.o cmdline.o disk.o file.o \
       cfg.o prom.o cache.o string.o setjmp.o util.o part.o \
@@ -38,8 +43,11 @@ OBJ = crt0.o elf.o printf.o malloc.o main.o cmdline.o disk.o file.o \
 $(NAME).elf: $(OBJ)
 	$(LD) $(LDFLAGS) -Bstatic -o $@ $^
 
+noclean:
+	@echo No need to clean
+
 clean:
 	@rm -f *.o $(NAME).elf $(NAME).b core *~ *.d
 
-$(NAME).b: $(NAME).elf
+%.b: %.elf
 	../util/elfextract $< $@

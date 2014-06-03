@@ -22,11 +22,13 @@
 #include "prom.h"
 #include "file.h"
 
+#ifndef CONFIG_TINY
 #define QUIK_ERR_DEF(e, s) s,
 static char *errors[] = {
    QUIK_ERR_LIST
 };
 #undef QUIK_ERR_DEF
+#endif /* CONFIG_TINY */
 
 /*
  * Print a string.
@@ -46,6 +48,7 @@ static void printks(char *s)
 }
 
 
+#ifndef CONFIG_TINY
 /*
  * Print an error.
  */
@@ -57,6 +60,7 @@ static void printkr(quik_err_t err)
       printks(errors[ERR_INVALID]);
    }
 }
+#endif /* CONFIG_TINY */
 
 
 /*
@@ -149,7 +153,11 @@ void vprintk(char *fmt, va_list adx)
          printks(s);
       } else if (c == 'r') {
          err = va_arg(adx, quik_err_t);
+#ifndef CONFIG_TINY
          printkr(err);
+#else
+         printknu(err, 16);
+#endif /* CONFIG_TINY */
       } else if (c == 'P') {
          path = va_arg(adx, path_t *);
          printkp(path);
