@@ -2,8 +2,17 @@
 ## Linux Loader for Macintosh
 ##
 
+-include build_env
+
 ifeq ($(CONFIG_TINY), 1)
 BUILD_FLAGS = -DCONFIG_TINY
+BUILD_ENV = "OLD_BUILD_FLAGS=$(BUILD_FLAGS)"
+endif
+
+ifneq ($(BUILD_FLAGS),$(OLD_BUILD_FLAGS))
+	PRETARGET=clean_env
+else
+	PRETARGET=log_env
 endif
 
 CFLAGS = -I../include -Os -D__NO_STRING_INLINES -nostdlib -fno-builtin -Werror -Wall $(BUILD_FLAGS)
@@ -17,8 +26,7 @@ NAME = iquik
 CC = $(CROSS)gcc
 LD = $(CROSS)ld
 
-POSSIBLE_CLEAN=$(shell (echo '$(BUILD_FLAGS)' | cmp -s - build_flags && echo noclean) || ( echo '$(BUILD_FLAGS)' > build_flags && echo clean ))
-all: $(POSSIBLE_CLEAN) $(NAME).b
+all: $(PRETARGET) $(NAME).b
 
 OBJ = crt0.o elf.o printf.o malloc.o main.o cmdline.o disk.o file.o \
       cfg.o prom.o cache.o string.o setjmp.o util.o part.o \
@@ -43,8 +51,14 @@ OBJ = crt0.o elf.o printf.o malloc.o main.o cmdline.o disk.o file.o \
 $(NAME).elf: $(OBJ)
 	$(LD) $(LDFLAGS) -Bstatic -o $@ $^
 
-noclean:
-	@echo No need to clean
+log_env:
+	@echo Resuming build with env \"$(BUILD_FLAGS)\"
+
+log_clean_env:
+	@echo Cleaning due to env change \(was \"$(OLD_BUILD_FLAGS)\" now \"$(BUILD_FLAGS)\"\)
+
+clean_env: log_clean_env clean
+	@echo $(BUILD_ENV) > build_env
 
 clean:
 	@rm -f *.o $(NAME).elf $(NAME).b core *~ *.d
