@@ -277,7 +277,7 @@ void install_stage(char *device,
    }
 
    if (verbose) {
-      printf("Code size: %u\nStage size: %u bytes\n",
+      printf("Code size: %zu\nStage size: %zu bytes\n",
              code_size, *stage_size);
    }
 
