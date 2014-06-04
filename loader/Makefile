@@ -2,12 +2,13 @@
 ## Linux Loader for Macintosh
 ##
 
--include build_env
+ENV_FILE=old_build_env
+-include $(ENV_FILE)
 
 ifeq ($(CONFIG_TINY), 1)
 BUILD_FLAGS = -DCONFIG_TINY
-BUILD_ENV = "OLD_BUILD_FLAGS=$(BUILD_FLAGS)"
 endif
+BUILD_ENV = "OLD_BUILD_FLAGS=$(BUILD_FLAGS)"
 
 ifneq ($(BUILD_FLAGS),$(OLD_BUILD_FLAGS))
 	PRETARGET=clean_env
@@ -58,10 +59,10 @@ log_clean_env:
 	@echo Cleaning due to env change \(was \"$(OLD_BUILD_FLAGS)\" now \"$(BUILD_FLAGS)\"\)
 
 clean_env: log_clean_env clean
-	@echo $(BUILD_ENV) > build_env
+	@echo $(BUILD_ENV) > $(ENV_FILE)
 
 clean:
-	@rm -f *.o $(NAME).elf $(NAME).b core *~ *.d
+	@rm -f $(ENV_FILE) *.o $(NAME).elf $(NAME).b core *~ *.d
 
 %.b: %.elf
 	../util/elfextract $< $@
