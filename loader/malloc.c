@@ -33,7 +33,7 @@ malloc_init()
 {
    malloc_ptr = (char *) prom_claim((void *) MALLOC_BASE, MALLOC_SIZE);
    if (malloc_ptr == (char *) -1) {
-      return ERR_OF_CLAIM;
+      return ERR_MALLOC_INIT;
    }
 
    malloc_end = malloc_ptr + MALLOC_SIZE;

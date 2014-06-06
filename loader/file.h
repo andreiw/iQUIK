@@ -29,8 +29,7 @@ typedef struct {
 
 quik_err_t
 file_path(char *pathspec,
-          char *default_device,
-          unsigned default_part,
+          env_dev_t *default_dev,
           path_t **path);
 
 quik_err_t

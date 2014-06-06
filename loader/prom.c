@@ -36,6 +36,8 @@ ihandle prom_memory;
  */
 #define OF_VER_105 "Open Firmware, 1.0.5"
 #define OF_VER_201 "Open Firmware, 2.0.1"
+#define OF_VER_3   "OpenFirmware 3"
+#define OF_VER_NW  "iMac,1"
 
 /*
  * Models to special-case.
@@ -58,14 +60,16 @@ ihandle prom_memory;
 #define PROM_3400_MEDIABAY_ATAPI    "/bandit/ohare/media-bay/ata/atapi-disk"
 #define PROM_3400_MEDIABAY_ATA      "/bandit/ohare/media-bay/ata/ata-disk"
 
+/* NewWorld machines need :0 after device for full disk access */
+#define PROM_NW_FULL_DISK           (1 << 5)
+
 static unsigned prom_flags = 0;
 static struct prom_args prom_args;
 
 typedef struct of_shim_state {
-  boot_info_t *bi;
 
-  /* For PROM_3400_HIDE_MEDIABAY_ATA. */
-  phandle mediabay_ata;
+   /* For PROM_3400_HIDE_MEDIABAY_ATA. */
+   phandle mediabay_ata;
 } of_shim_state_t;
 
 static of_shim_state_t of_shim_state;
@@ -196,10 +200,10 @@ prom_shim(struct prom_args *args)
          }
 
          if (strcmp(name, "linux,initrd-start") == 0) {
-           *place = (uint32_t) of_shim_state.bi->initrd_base;
+           *place = (uint32_t) bi->initrd_base;
          } else if (strcmp(name, "linux,initrd-end") == 0) {
-           *place = (uint32_t) of_shim_state.bi->initrd_base +
-               of_shim_state.bi->initrd_len;
+           *place = (uint32_t) bi->initrd_base +
+               bi->initrd_len;
          } else {
             goto out;
          }
@@ -225,7 +229,7 @@ prom_shim(struct prom_args *args)
       }
    }
 
-   if (of_shim_state.bi->flags & DEBUG_BEFORE_BOOT) {
+   if (bi->flags & DEBUG_BEFORE_BOOT) {
       if (strcmp(args->service, "quiesce") == 0) {
          prom_pause(NULL);
       }
@@ -236,8 +240,7 @@ out:
 
 
 quik_err_t
-prom_init(void (*pp)(void *),
-          boot_info_t *bi)
+prom_init(void (*pp)(void *))
 {
    phandle oprom;
    char ver[64];
@@ -287,6 +290,14 @@ prom_init(void (*pp)(void *),
        * Possibly older than Wallstreet systems are affected.
        */
       prom_flags |= PROM_SHALLOW_SETPROP;
+   } else if (strcmp(ver, OF_VER_3) == 0 ||
+              strcmp(ver, OF_VER_NW)) {
+
+      /*
+       * All NewWorlds ar CHRP-like and need :0 to reference
+       * the full device.
+       */
+      prom_flags |= PROM_NW_FULL_DISK;
    }
 
    ver[0] = '\0';
@@ -330,9 +341,6 @@ prom_init(void (*pp)(void *),
       bi->flags |= SHIM_OF;
    }
 
-   prom_get_chosen("bootargs", bi->of_bootargs, sizeof(bi->of_bootargs));
-   bi->bootargs = bi->of_bootargs;
-
    /* Run the preboot script if there is one. */
    if (strlen(preboot_script) != 0) {
       printk("\nPress any key in %u secs to skip preboot script ... ",
@@ -341,19 +349,11 @@ prom_init(void (*pp)(void *),
          printk("running\n");
          bi->flags |= WITH_PREBOOT;
          prom_interpret(preboot_script);
-
-         /*
-          * Forget about the passed args, presumably boot-file was set
-          * by the script (why else would you use it)?
-          */
-         prom_get_options("boot-file", bi->of_bootargs, sizeof(bi->of_bootargs));
-         bi->bootargs = bi->of_bootargs;
       } else {
          printk("skipped!\n");
       }
    }
 
-   of_shim_state.bi = bi;
    return ERR_NONE;
 }
 
@@ -501,4 +501,35 @@ prom_ensure_claimed(void *virt,
    for (; addr < (vaddr_t) virt + size; addr += SIZE_4K) {
       prom_claim((void *) addr, SIZE_4K);
    }
+}
+
+
+quik_err_t
+prom_open(char *device, ihandle *ih)
+{
+   char *d;
+   ihandle c;
+
+   d = device;
+   if (prom_flags & PROM_NW_FULL_DISK) {
+      d = malloc(strlen(device) + 3);
+      if (d == NULL) {
+         return ERR_NO_MEM;
+      }
+
+      strcpy(d, device);
+      strcat(d, ":0");
+   }
+
+   c = call_prom("open", 1, 1, d);
+   if (prom_flags & PROM_NW_FULL_DISK) {
+      free(d);
+   }
+
+   if (c == (ihandle) 0 || c == (ihandle) -1) {
+      return ERR_OF_OPEN;
+   }
+
+   *ih = c;
+   return ERR_NONE;
 }

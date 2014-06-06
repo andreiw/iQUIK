@@ -116,15 +116,16 @@ file_ls(path_t *path)
 
 quik_err_t
 file_path(char *pathspec,
-          char *default_device,
-          unsigned default_part,
+          env_dev_t *default_dev,
           path_t **path)
 {
    int n;
    char *endp;
+   quik_err_t err;
    unsigned slen = strlen(pathspec) + 1;
-   path_t *p = (path_t *) malloc(slen + sizeof(path_t));
+   path_t *p;
 
+   p = (path_t *) malloc(slen + sizeof(path_t));
    if (p == NULL) {
       return ERR_NO_MEM;
    }
@@ -135,13 +136,17 @@ file_path(char *pathspec,
 
    p->path = strchr(pathspec, ':');
    if (!p->path) {
+      err = env_dev_is_valid(default_dev);
+      if (err != ERR_NONE) {
+         return err;
+      }
 
       /*
        * Short form using default device/part.
        */
       p->path = pathspec;
-      p->part = default_part;
-      p->device = default_device;
+      p->part = default_dev->part;
+      p->device = default_dev->device;
    } else {
 
       /*

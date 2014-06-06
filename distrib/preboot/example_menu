@@ -1,4 +1,5 @@
-: bx-boot-opts 4 ; ( unit = 100 ms )
+: setboot " boot-file" $setenv
+: bx-boot-opts 5 ; ( unit = 100 ms )
 : bx-boot-wait d# 100 ;
 : bx-boot-defopt 1 ;
 : bx-display-menu ( -- )
@@ -7,15 +8,16 @@
   ." 2: Top PCMCIA installer"        cr
   ." 3: Top PCMCIA installer expert" cr
   ." 4: Top PCMCIA boot"             cr
+  ." 5: Existing boot-file"          cr
 ;
 : bx-boot-choose ( num -- )
   case
-    1 of " ata0/ata-disk@0:4" endof
-    2 of " ata3/pccard45,401@0:3/installer/quik.conf" endof
-    3 of " ata3/pccard45,401@0:3/installer/quik.conf expert" endof
-    4 of " ata3/pccard45,401@0:3" endof
+    1 of " ata0/ata-disk@0:4" setboot endof
+    2 of " ata3/pccard45,401@0:3/installer/quik.conf" setboot endof
+    3 of " ata3/pccard45,401@0:3/installer/quik.conf expert" setboot endof
+    4 of " ata3/pccard45,401@0:3" setboot endof
+    5 of ." not touching boot-file" endof
   endcase
-  " boot-file" $setenv
 ;
 : bx-read-num ( wait-period max-boot-num def-opt -- boot-num )
   1 ( loop-inc = 1 )

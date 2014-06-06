@@ -18,7 +18,7 @@ extern ihandle prom_chosen;
 extern ihandle prom_aliases;
 
 /* Prototypes */
-quik_err_t prom_init(void (*pp)(void *), boot_info_t *bi);
+quik_err_t prom_init(void (*pp)(void *));
 void prom_exit(void);
 void *call_prom(char *service, int nargs, int nret, ...);
 void prom_print(char *msg);
@@ -36,6 +36,7 @@ void prom_release(void *virt, unsigned int size);
 void *prom_claim_chunk(void *virt,
                        unsigned int size);
 void *prom_claim(void *virt, unsigned int size);
+quik_err_t prom_open(char *device, ihandle *ih);
 void set_bootargs(char *params);
 
 struct prom_args {

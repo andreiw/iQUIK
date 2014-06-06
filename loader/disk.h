@@ -27,15 +27,11 @@
 #define SECTOR_SIZE 512
 #define SECTOR_BITS 9
 
-void disk_init(boot_info_t *bi);
 quik_err_t disk_open(char *device, ihandle *dev);
 void disk_close(ihandle dev);
 length_t disk_read(ihandle dev,
                    char *buf,
                    length_t nbytes,
                    offset_t offset);
-
-
-
 
 #endif /* QUIK_PART_H */

@@ -107,8 +107,7 @@ quik_err_t elf_parse(void *load_buf,
  * which is hopefully absolutely nothing - new
  * kernels can run wherever they are loaded.
  */
-quik_err_t elf_relo(boot_info_t *bi,
-                    load_state_t *image)
+quik_err_t elf_relo(load_state_t *image)
 {
    if (bi->flags & BOOT_PRE_2_4) {
       if (image->text_len > IQUIK_BASE) {
@@ -139,7 +138,6 @@ quik_err_t elf_relo(boot_info_t *bi,
    }
 
    flush_cache(image->linked_base, image->text_len);
-
    return ERR_NONE;
 }
 
@@ -147,10 +145,7 @@ quik_err_t elf_relo(boot_info_t *bi,
 /*
  * Given a loaded image hand off control to it.
  */
-quik_err_t elf_boot(boot_info_t *bi,
-                    load_state_t *image,
-                    vaddr_t initrd_base,
-                    length_t initrd_len,
+quik_err_t elf_boot(load_state_t *image,
                     char *params)
 {
    vaddr_t start;
@@ -179,7 +174,8 @@ quik_err_t elf_boot(boot_info_t *bi,
 
    set_bootargs(params);
 
-   (* (void (*)()) start)(initrd_base, initrd_len,
+   (* (void (*)()) start)(bi->initrd_base,
+                          bi->initrd_len,
                           (bi->flags & SHIM_OF) ?
                           bi->prom_shim :
                           bi->prom_entry,

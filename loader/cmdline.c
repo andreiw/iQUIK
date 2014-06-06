@@ -1,6 +1,7 @@
 /*
  * Prompt handling
  *
+ * Copyright (C) 2014 Andrei Warkentin
  * Copyright (C) 1996 Maurizio Plaza
  * 1996 Jakub Jelinek
  *
@@ -21,30 +22,36 @@
 #include "quik.h"
 #include "prom.h"
 
-#define CMD_LENG  512
-char cbuff[CMD_LENG];
+#define CMD_LENG 512
+static char *cbuff;
 
-void cmd_init()
+quik_err_t
+cmd_init(void)
 {
-   cbuff[0] = 0;
+   cbuff = malloc(CMD_LENG);
+   if (cbuff == NULL) {
+      return ERR_NO_MEM;
+   }
+
+   return ERR_NONE;
 }
 
-void cmd_edit(void (*tabfunc)(boot_info_t *), boot_info_t *bi, key_t c)
+char *
+cmd_edit(void (*tabfunc)(char *), key_t c)
 {
-   int x;
+   int x = 0;
+   memset(cbuff, 0, sizeof(cbuff));
 
-   for (x = 0; x < CMD_LENG - 1 && cbuff[x] != 0; x++)
-      ;
-   prom_print(cbuff);
-
-   if (c == KEY_NONE)
+   if (c == KEY_NONE) {
       c = getchar();
+   }
    while (c != KEY_NONE && c != '\n' && c != '\r') {
-      if (c == '\t' && tabfunc)
-         (*tabfunc)(bi);
-      if (c == '\b' || c == 0x7F) {
+      if (c == '\t' && tabfunc) {
+        (*tabfunc)(cbuff);
+      } else if (c == '\b' || c == 0x7F) {
          if (x > 0) {
             --x;
+            cbuff[x] = 0;
             prom_print("\b \b");
          }
       } else if (c >= ' ' && x < CMD_LENG - 1) {
@@ -56,11 +63,5 @@ void cmd_edit(void (*tabfunc)(boot_info_t *), boot_info_t *bi, key_t c)
    }
 
    cbuff[x] = 0;
-   return;
-}
-
-void cmd_fill(const char *d)
-{
-   strncpy(cbuff, d, CMD_LENG);
-   cbuff[CMD_LENG - 1] = 0;
+   return cbuff;
 }

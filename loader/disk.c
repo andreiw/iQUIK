@@ -25,15 +25,11 @@ quik_err_t
 disk_open(char *device,
           ihandle *dev)
 {
-   ihandle current_dev;
+   quik_err_t err;
 
-   current_dev = call_prom("open", 1, 1, device);
-   if (current_dev == (ihandle) 0 || current_dev == (ihandle) -1) {
-      return ERR_DEV_OPEN;
-   }
+   err = prom_open(device, dev);
 
-   *dev = current_dev;
-   return ERR_NONE;
+   return err;
 }
 
 
@@ -45,64 +41,6 @@ disk_close(ihandle dev)
     * Out params is indeed '0' or the close won't happen. Grrr...
     */
    call_prom("close", 1, 0, dev);
-}
-
-
-void
-disk_init(boot_info_t *bi)
-{
-   char *p;
-
-   bi->default_device = bi->bootargs;
-   word_split(&bi->default_device, &bi->bootargs);
-
-   if (!bi->default_device) {
-      prom_get_options("boot-file", bi->bootfile, sizeof(bi->bootfile));
-
-      if (bi->flags & WITH_PREBOOT) {
-         printk("Preboot script didn't set boot-file?");
-	 return;
-      }
-
-      printk("Hmmm, no booting device passed as argument... ");
-   } else {
-      bi->default_device = chomp(bi->default_device);
-      if (memcmp(bi->default_device, "--", 2) == 0) {
-	 if (bi->flags & WITH_PREBOOT) {
-	    printk("Preboot script didn't set boot-file?");
-	    return;
-	 }
-
-         printk("Default booting device requested... ");
-         prom_get_options("boot-file", bi->bootfile, sizeof(bi->bootfile));
-      }
-   }
-
-   if (bi->bootfile[0] != 0) {
-      printk("using boot-file '%s'\n", bi->bootfile);
-      bi->default_device = bi->bootfile;
-   }
-
-   p = strchr(bi->default_device, ':');
-   if (p != 0) {
-      bi->default_part = strtol(p + 1, NULL, 0);
-      *p++ = 0;
-
-      /* Are we given a config file path? */
-      p = strchr(p, '/');
-      if (p != 0) {
-         bi->config_file = p;
-      } else {
-         bi->config_file = "/etc/quik.conf";
-      }
-   }
-
-   if (bi->default_part == 0) {
-
-      /* No idea where's we looking for the configuration file. */
-      printk("Booting device did not specify partition\n");
-      return;
-   }
 }
 
 
@@ -124,5 +62,6 @@ disk_read(ihandle dev,
 
    nr = (length_t) call_prom("read", 3, 1, dev,
                              buf, nbytes);
+
    return nr;
 }

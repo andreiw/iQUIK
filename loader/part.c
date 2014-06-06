@@ -77,8 +77,8 @@ read_mac_partition(ihandle dev,
       if (part == upart
           || (part == 0 && (mp->status & STATUS_BOOTABLE) != 0
               && strcasecmp(mp->processor, "powerpc") == 0)) {
-         p->start = mp->start_block * secsize;
-         p->len = (offset_t) mp->block_count * secsize;
+         p->start = (offset_t) mp->start_block * (offset_t) secsize;
+         p->len = (offset_t) mp->block_count * (offset_t) secsize;
          p->dev = dev;
          return ERR_NONE;
       }

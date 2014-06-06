@@ -46,10 +46,11 @@ Meant for OldWorlds in general, it has only been tested on:
 2) PowerBook Wallstreet II (PDQ) (OF 2.0.1, G3)
 3) UMAX StormSurge (OF 1.0.5, 604e)
 4) QEMU (OpenBIOS 1.1 r1272+).
+5) PowerBook 12'' 1.5GHz (OF 3, G4)
 
-It would be nice to test with 2.4 and maybe even a NewWorld,
-although the later isn't a goal. See distrib/ for docs on getting
-to run on certain hardware (including qemu).
+It would be nice to test with 1.1.2 and 2.4. See distrib/ for docs on getting
+to run on certain hardware (including qemu and NewWorlds, although iQUIK
+is not meant for NewWorlds).
 
 Tested with 3.2 kernels and older.
 
@@ -126,7 +127,8 @@ Whatever medium you want to install iQUIK on, it has to:
 1) Be mac partitioned
 2) Contain an Apple_Bootstrap partition.
 
-iQUIK does not support any other way of booting.
+iQUIK does not support any other way of booting on OldWorlds. For NewWorlds,
+see distrib/NewWorld.
 
 Example (for floppy):
 root@3400c:~# mac-fdisk /dev/fd0

@@ -24,6 +24,7 @@
 
 #include <inttypes.h>
 #include <stdarg.h>
+#include <stdbool.h>
 
 #define ALIGN_UP(addr, align) (((addr) + (align) - 1) & (~((align) - 1)))
 #define ALIGN(addr, align) (((addr) - 1) & (~((align) - 1)))
@@ -60,13 +61,13 @@ typedef struct {
 #define QUIK_ERR_LIST                                                   \
    QUIK_ERR_DEF(ERR_NONE, "no error")                                   \
    QUIK_ERR_DEF(ERR_NOT_READY, "operation should be retried")           \
-   QUIK_ERR_DEF(ERR_OF_CLAIM, "claim failed")                           \
+   QUIK_ERR_DEF(ERR_MALLOC_INIT, "malloc claim failed")                \
    QUIK_ERR_DEF(ERR_OF_INIT_NO_CHOSEN, "no OF /chosen")                 \
    QUIK_ERR_DEF(ERR_OF_INIT_NO_MEMORY, "no OF /memory")                 \
    QUIK_ERR_DEF(ERR_OF_INIT_NO_OPTIONS, "no OF /options")               \
    QUIK_ERR_DEF(ERR_OF_INIT_NO_OPROM, "no OF /openprom")                \
    QUIK_ERR_DEF(ERR_OF_INIT_NO_ROOT, "no OF /")                         \
-   QUIK_ERR_DEF(ERR_DEV_OPEN, "cannot open device")                     \
+   QUIK_ERR_DEF(ERR_OF_OPEN, "cannot open device")                      \
    QUIK_ERR_DEF(ERR_DEV_SHORT_READ, "short read on device")             \
    QUIK_ERR_DEF(ERR_PART_NOT_MAC, "partitioning not macintosh")         \
    QUIK_ERR_DEF(ERR_PART_NOT_DOS, "partitioning not dos")               \
@@ -87,8 +88,10 @@ typedef struct {
    QUIK_ERR_DEF(ERR_KERNEL_RETURNED, "kernel returned")                 \
    QUIK_ERR_DEF(ERR_KERNEL_OLD_BIG, "pre-2.4 kernel too large ")        \
    QUIK_ERR_DEF(ERR_NO_MEM, "malloc failed")                            \
-   QUIK_ERR_DEF(ERR_CONFIG_NOT_FOUND, "no configuration file found")	\
-   QUIK_ERR_DEF(ERR_CONFIG_NO_DEV, "bad boot-file or boot parameters")	\
+   QUIK_ERR_DEF(ERR_CONFIG_NOT_FOUND, "no configuration file found")    \
+   QUIK_ERR_DEF(ERR_ENV_DEFAULT_BAD, "bad default device path")         \
+   QUIK_ERR_DEF(ERR_ENV_CURRENT_BAD, "bad current device path")         \
+   QUIK_ERR_DEF(ERR_ENV_PREBOOT_BAD, "no boot-file set by preboot script") \
    QUIK_ERR_DEF(ERR_INVALID, "invalid error, likely a bug")             \
 
 #define QUIK_ERR_DEF(e, s) e,
@@ -98,15 +101,18 @@ typedef enum {
 #undef QUIK_ERR_DEF
 
 typedef struct {
+   char *device;
+   unsigned part;
+   bool part_valid;
+} env_dev_t;
+
+typedef struct {
 
    /* Real OF entry. */
    vaddr_t prom_entry;
 
    /* Our shim, if any. */
    vaddr_t prom_shim;
-
-   /* Boot device path. */
-   char *device;
 
 #define CONFIG_VALID          (1 << 1)
 #define PAUSE_BEFORE_BOOT     (1 << 2)
@@ -120,21 +126,19 @@ typedef struct {
    /* Config file path. E.g. /etc/quik.conf */
    char *config_file;
 
+   /* Our env which we get from OF. */
+   char *of_bootargs_buf;
+   char *of_bootfile_buf;
+
    /*
-    * Partition index for config_file, then
-    * used as the default partition.
+    * Operating env.
+    *
+    * Device/partition for config_file, then
+    * used as the default device path unless
+    * overriden in a path spec.
     */
-   unsigned default_part;
-
-   /* Picked default boot device. */
-   char *default_device;
-
-   /* Some reasonable size for bootargs. */
-   char of_bootargs[512];
+   env_dev_t default_dev;
    char *bootargs;
-
-   /* Something reasonable for boot-file. */
-   char bootfile[512];
 
    /* Pause message. */
    char *pause_message;
@@ -147,6 +151,8 @@ typedef struct {
    length_t initrd_len;
 } boot_info_t;
 
+extern boot_info_t *bi;
+
 typedef int key_t;
 #define KEY_NONE (-1)
 
@@ -154,21 +160,14 @@ typedef int key_t;
 #define PREBOOT_TIMEOUT 50
 #define TIMEOUT_TO_SECS(t) (t / 10)
 
-void cmd_init();
-void cmd_edit(void (*tabfunc)(boot_info_t *), boot_info_t *bi, key_t c);
-void cmd_fill(const char *d);
-
-extern char cbuff[];
+quik_err_t cmd_init(void);
+char *cmd_edit(void (*tabfunc)(char *buf), key_t c);
 
 quik_err_t elf_parse(void *load_buf,
                      length_t load_buf_len,
                      load_state_t *image);
-quik_err_t elf_relo(boot_info_t *bi,
-                    load_state_t *image);
-quik_err_t elf_boot(boot_info_t *bi,
-                    load_state_t *image,
-                    vaddr_t initrd_base,
-                    length_t initrd_len,
+quik_err_t elf_relo(load_state_t *image);
+quik_err_t elf_boot(load_state_t *image,
                     char *params);
 
 int cfg_parse(char *cfg_file, char *buff, int len);
@@ -181,6 +180,11 @@ quik_err_t malloc_init(void);
 void *malloc(unsigned int size);
 void free(void *);
 void *realloc(void *ptr, unsigned int size);
+
+void env_dev_set_part(env_dev_t *dp, unsigned part);
+quik_err_t env_dev_update_from_default(env_dev_t *cur_dev);
+quik_err_t env_dev_is_valid(env_dev_t *dp);
+quik_err_t env_init(void);
 
 void spinner(int freq);
 void flush_cache(vaddr_t base, length_t len);

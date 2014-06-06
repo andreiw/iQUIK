@@ -29,31 +29,42 @@
  */
 
 #include "quik.h"
-#include "disk.h"
 #include "file.h"
+#include "prom.h"
 #include <layout.h>
 
 #define PROMPT "boot: "
 
-static boot_info_t bi;
+boot_info_t *bi = { 0 };
+
 
 static void
-maintabfunc(boot_info_t *bi)
+maintabfunc(char *buf)
 {
    if (bi->flags & CONFIG_VALID) {
       cfg_print_images();
-      printk(PROMPT"%s", cbuff);
+      printk(PROMPT"%s", buf);
    }
 }
 
 
 static char *
-make_params(boot_info_t *bi,
-            char *label,
+make_params(char *label,
             char *params)
 {
    char *p, *q;
-   static char buffer[2048];
+   static char *buffer = NULL;
+
+   /*
+    * AndreiW: fix me. This is mildly
+    * better than putting it on the heap.
+    */
+   if (buffer == NULL) {
+      buffer = malloc(2048);
+      if (buffer == NULL) {
+         return NULL;
+      }
+   }
 
    q = buffer;
    *q = 0;
@@ -118,8 +129,7 @@ make_params(boot_info_t *bi,
 
 
 static void
-command_ls(boot_info_t *bi,
-           char *args)
+command_ls(char *args)
 {
    path_t *path;
    quik_err_t err;
@@ -132,9 +142,12 @@ command_ls(boot_info_t *bi,
       args = "/";
    }
 
-   err = file_path(args, bi->default_device,
-                   bi->default_part, &path);
+   err = file_path(args, &bi->default_dev, &path);
    if (err != ERR_NONE) {
+      if (err == ERR_ENV_CURRENT_BAD) {
+         err = ERR_ENV_DEFAULT_BAD;
+      }
+
       printk("Error listing '%s': %r\n",
              args, err);
       return;
@@ -152,8 +165,7 @@ command_ls(boot_info_t *bi,
 
 
 static void
-command_cat(boot_info_t *bi,
-            char *p)
+command_cat(char *p)
 {
    char *message;
    length_t len;
@@ -169,9 +181,12 @@ command_cat(boot_info_t *bi,
       return;
    }
 
-   err = file_path(p, bi->default_device,
-                   bi->default_part, &path);
+   err = file_path(p, &bi->default_dev, &path);
    if (err != ERR_NONE) {
+      if (err == ERR_ENV_CURRENT_BAD) {
+         err = ERR_ENV_DEFAULT_BAD;
+      }
+
       printk("Error opening '%s': %r\n",
              p, err);
       return;
@@ -186,6 +201,12 @@ command_cat(boot_info_t *bi,
    }
 
    message = malloc(len);
+   if (message == NULL) {
+      printk("Error catting '%P': %r\n",
+             path, ERR_NO_MEM);
+      free(path);
+      return;
+   }
    err = file_load(path, message);
    if (err == ERR_NONE) {
       message[len] = 0;
@@ -201,7 +222,7 @@ command_cat(boot_info_t *bi,
 
 
 static quik_err_t
-load_config(boot_info_t *bi)
+load_config(void)
 {
    length_t len;
    char *buf;
@@ -219,13 +240,17 @@ load_config(boot_info_t *bi)
       NULL
    };
 
-   if (!bi->default_device ||
-       bi->default_part == 0) {
-      return ERR_CONFIG_NO_DEV;
+   err = env_dev_is_valid(&bi->default_dev);
+   if (err != ERR_NONE) {
+      if (err == ERR_ENV_CURRENT_BAD) {
+         err = ERR_ENV_DEFAULT_BAD;
+      }
+
+      return err;
    }
 
-   path.device = bi->default_device;
-   path.part = bi->default_part;
+   path.device = bi->default_dev.device;
+   path.part = bi->default_dev.part;
    while (attempts[n] != NULL) {
       path.path = attempts[n];
 
@@ -272,14 +297,15 @@ load_config(boot_info_t *bi)
    }
 
    if(cfg_get_strg(0, "device") != NULL) {
-      bi->default_device = cfg_get_strg(0, "device");
+      bi->default_dev.device = cfg_get_strg(0, "device");
    }
 
    p = cfg_get_strg(0, "partition");
    if (p) {
       n = strtol(p, &endp, 10);
-      if (endp != p && *endp == 0)
-         bi->default_part = n;
+      if (endp != p && *endp == 0) {
+         env_dev_set_part(&bi->default_dev, n);
+      }
    }
 
    p = cfg_get_strg(0, "pause-message");
@@ -289,7 +315,7 @@ load_config(boot_info_t *bi)
 
    p = cfg_get_strg(0, "message");
    if (p) {
-      command_cat(bi, p);
+      command_cat(p);
    }
 
    return ERR_NONE;
@@ -297,8 +323,7 @@ load_config(boot_info_t *bi)
 
 
 static void
-bang_commands(boot_info_t *bi,
-              char *args)
+bang_commands(char *args)
 {
    if (!strcmp(args, "debug")) {
       bi->flags |= DEBUG_BEFORE_BOOT;
@@ -307,9 +332,9 @@ bang_commands(boot_info_t *bi,
    } else if (!strcmp(args, "halt")) {
       prom_pause(NULL);
    } else if (!memcmp(args, "ls", 2)) {
-      command_ls(bi, args + 2);
+      command_ls(args + 2);
    } else if (!memcmp(args, "cat ", 4)) {
-      command_cat(bi, args + 3);
+      command_cat(args + 3);
    } else if (!memcmp(args, "of ", 3)) {
       prom_interpret(args + 3);
       printk("\n");
@@ -320,23 +345,19 @@ bang_commands(boot_info_t *bi,
 
 
 static quik_err_t
-get_params(boot_info_t *bi,
-           char **kernel,
+get_params(char **kernel,
            char **initrd,
            char **params,
-           unsigned *part,
-           char **device)
+           env_dev_t *cur_dev)
 {
    char *p;
    char *q;
    int n;
+   char *buf;
    char *endp;
    key_t lastkey;
    char *label = NULL;
    int timeout = DEFAULT_TIMEOUT;
-
-   *part = bi->default_part;
-   *device = bi->default_device;
 
    if ((bi->flags & TRIED_AUTO) == 0) {
       bi->flags ^= TRIED_AUTO;
@@ -381,16 +402,15 @@ get_params(boot_info_t *bi,
    } else {
       *kernel = NULL;
 
-      cmd_init();
-      cmd_edit(maintabfunc, bi, lastkey);
+      buf = cmd_edit(maintabfunc, lastkey);
       printk("\n");
 
-      if (cbuff[0] == '!') {
-         bang_commands(bi, cbuff + 1);
+      if (buf[0] == '!') {
+         bang_commands(buf + 1);
          return ERR_NOT_READY;
       }
 
-      *kernel = cbuff;
+      *kernel = buf;
       word_split(kernel, params);
    }
 
@@ -403,14 +423,14 @@ get_params(boot_info_t *bi,
 
          p = cfg_get_strg(label, "device");
          if (p) {
-            *device = p;
+            cur_dev->device = p;
          }
 
          p = cfg_get_strg(label, "partition");
          if (p) {
             n = strtol(p, &endp, 10);
             if (endp != p && *endp == 0) {
-               *part = n;
+               env_dev_set_part(cur_dev, n);
             }
          }
 
@@ -425,7 +445,10 @@ get_params(boot_info_t *bi,
             bi->flags &= ~BOOT_PRE_2_4;
          }
 
-         *params = make_params(bi, label, *params);
+         *params = make_params(label, *params);
+         if (*params == NULL) {
+            return ERR_NO_MEM;
+         }
       }
    }
 
@@ -458,31 +481,42 @@ get_params(boot_info_t *bi,
 
 
 static quik_err_t
-get_load_paths(boot_info_t *bi,
-               path_t **kernel,
+get_load_paths(path_t **kernel,
                path_t **initrd,
                char **params)
 {
    quik_err_t err;
-   unsigned current_part;
    char *kernel_spec = NULL;
    char *initrd_spec = NULL;
-   char *current_device = NULL;
+   env_dev_t cur_dev = { 0 };
 
-   err = get_params(bi, &kernel_spec, &initrd_spec,
-                    params, &current_part, &current_device);
+   err = get_params(&kernel_spec, &initrd_spec,
+                    params, &cur_dev);
    if (err != ERR_NONE) {
       return err;
    }
 
-   err = file_path(kernel_spec, current_device, current_part, kernel);
+   /*
+    * In case get_params didn't set the device or partition,
+    * propagate from the default device path.
+    */
+   err = env_dev_update_from_default(&cur_dev);
+   if (err != ERR_NONE) {
+      return err;
+   }
+
+   err = file_path(kernel_spec,
+                   &cur_dev,
+                   kernel);
    if (err != ERR_NONE) {
       printk("Error parsing kernel path '%s': %r\n", kernel_spec, err);
       return err;
    }
 
    if (initrd_spec != NULL) {
-      err = file_path(initrd_spec, current_device, current_part, initrd);
+      err = file_path(initrd_spec,
+                      &cur_dev,
+                      initrd);
       if (err != ERR_NONE) {
          printk("Error parsing initrd path '%s': %r\n", initrd_spec, err);
          free(kernel);
@@ -527,8 +561,7 @@ load_image(path_t *path,
 
 
 static quik_err_t
-try_load_loop(boot_info_t *bi,
-              load_state_t *image,
+try_load_loop(load_state_t *image,
               char **params)
 {
    quik_err_t err;
@@ -539,21 +572,19 @@ try_load_loop(boot_info_t *bi,
    path_t *kernel_path = NULL;
    path_t *initrd_path = NULL;
 
-   err = get_load_paths(bi, &kernel_path, &initrd_path, params);
+   err = get_load_paths(&kernel_path, &initrd_path, params);
    if (err != ERR_NONE) {
       return err;
    }
 
    kernel_buf = LOAD_BASE;
    err = load_image(kernel_path, &kernel_buf, &kernel_len);
-   if (err != ERR_NONE) {
-      kernel_buf = 0;
-      goto out;
+   if (err == ERR_NONE) {
+      err = elf_parse((void *) kernel_buf, kernel_len, image);
    }
 
-   err = elf_parse((void *) kernel_buf, kernel_len, image);
    if (err != ERR_NONE) {
-      printk("Error ELF-parsing '%P': %r\n", kernel_path, err);
+      printk("Error loading '%P': %r\n", kernel_path, err);
       goto out;
    }
 
@@ -600,63 +631,73 @@ iquik_main(void *a1,
    quik_err_t err;
    load_state_t image;
 
-   err = prom_init(prom_entry, &bi);
+   err = prom_init(prom_entry);
    if (err != ERR_NONE) {
       prom_exit();
    }
 
    printk("\niQUIK OldWorld Bootloader\n");
    printk("Copyright (C) 2014 Andrei Warkentin <andrey.warkentin@gmail.com>\n");
-   if (bi.flags & SHIM_OF) {
+   if (bi->flags & SHIM_OF) {
       printk("This firmware requires a shim to work around bugs\n");
    }
 
-   printk("Passed arguments: '%s'\n", bi.bootargs);
-
-   malloc_init();
-   disk_init(&bi);
-   err = load_config(&bi);
+   err = malloc_init();
    if (err != ERR_NONE) {
-      printk("No bootable images: %r\n", err);
+      goto error;
+   }
+
+   err = cmd_init();
+   if (err != ERR_NONE) {
+      goto error;
+   }
+
+   err = env_init();
+   if (err != ERR_NONE) {
+      goto error;
+   }
+
+   err = load_config();
+   if (err != ERR_NONE) {
+      printk("No configration file parsed: %r\n", err);
    }
 
    for (;;) {
       params = NULL;
 
-      err = try_load_loop(&bi, &image, &params);
+      err = try_load_loop(&image, &params);
       if (err == ERR_NONE) {
          break;
       }
    }
 
-   err = elf_relo(&bi, &image);
+   err = elf_relo(&image);
    if (err != ERR_NONE) {
-      printk("Error relocating kernel: %r\n", err);
-      prom_exit();
+      goto error;
    }
 
-   if (bi.flags & BOOT_PRE_2_4 &&
-       bi.flags & SHIM_OF) {
+   if (bi->flags & BOOT_PRE_2_4 &&
+       bi->flags & SHIM_OF) {
       printk("OF shimming unsupported for pre-2.4 kernels\n");
-      bi.flags ^= SHIM_OF;
+      bi->flags ^= SHIM_OF;
    }
 
-   if (bi.flags & DEBUG_BEFORE_BOOT) {
-      if (bi.flags & BOOT_PRE_2_4) {
+   if (bi->flags & DEBUG_BEFORE_BOOT) {
+      if (bi->flags & BOOT_PRE_2_4) {
          printk("Booting pre-2.4 kernel\n");
       }
 
       printk("Kernel: 0x%x @ 0x%x\n", image.text_len, image.linked_base);
-      printk("Initrd: 0x%x @ 0x%x\n", bi.initrd_len, bi.initrd_base);
+      printk("Initrd: 0x%x @ 0x%x\n", bi->initrd_len, bi->initrd_base);
       printk("Kernel parameters: %s\n", params);
       printk("Kernel entry: 0x%x\n", image.entry);
       prom_pause(NULL);
-   } else if (bi.flags & PAUSE_BEFORE_BOOT) {
-      prom_pause(bi.pause_message);
+   } else if (bi->flags & PAUSE_BEFORE_BOOT) {
+      prom_pause(bi->pause_message);
    }
 
-   err = elf_boot(&bi, &image, bi.initrd_base,
-                  bi.initrd_len, params);
-   printk("Booted kernel returned: %r", err);
+   err = elf_boot(&image, params);
+error:
+   printk("Exiting on error: %r", err);
    prom_exit();
 }
