@@ -127,8 +127,7 @@ Whatever medium you want to install iQUIK on, it has to:
 1) Be mac partitioned
 2) Contain an Apple_Bootstrap partition.
 
-iQUIK does not support any other way of booting on OldWorlds. For NewWorlds,
-see distrib/NewWorld.
+NOTE: iQUIK does not support any other way of booting on OldWorlds
 
 Example (for floppy):
 root@3400c:~# mac-fdisk /dev/fd0
@@ -158,6 +157,11 @@ $ iquik
 ...should be sufficient. 'iquik -v' for verbosity. 'iquik -T -v'
 if you just want to see what iquik would have done. The tool will
 not do anything if you don't have an Apple_Bootstrap partition.
+
+NOTE: do not run the iquik installer on a NewWorld. Yaboot also
+      uses an Apple_Bootstrap partition, and you will trash
+      Yaboot's HFS partition. NewWorlds cannot boot via
+      a partition zero.
 
 If you want to install on some other media, use the '-d' flag:
 
