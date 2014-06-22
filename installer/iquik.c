@@ -530,8 +530,8 @@ int main(int argc,char **argv)
             "when running on a NewWorld. This is because iQUIK will trash your\n"
             "Yaboot Apple_Bootstrap partition and the resulting system *WILL NOT*\n"
             "be bootable, because NewWorlds cannot boot via partition zero blocks.\n"
-            "If you want to boot a NewWorld, you must launch '%s'\n"
-            "directly from OF.\n", name);
+            "If you want to boot a NewWorld, see distrib/NewWorld in the iQUIK\n"
+            "source distribution\n");
    }
 
    if (basedev == NULL) {
