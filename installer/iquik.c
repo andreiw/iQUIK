@@ -56,8 +56,9 @@
 static bool verbose = false;
 static bool test_mode = false;
 
-
-ssize_t do_write(int fd, const void *buf, size_t count)
+ssize_t do_write(int fd,           /* IN: fd to write to */
+                 const void *buf,  /* IN: buffer */
+                 size_t count)     /* IN: buffer length */
 {
    if (test_mode) {
       printf("<skipping write due to test mode>\n");
@@ -67,15 +68,38 @@ ssize_t do_write(int fd, const void *buf, size_t count)
    return write(fd, buf, count);
 }
 
+
 void fatal(char *fmt,...)
 {
    va_list ap;
    va_start(ap, fmt);
-   fprintf(stderr, "Fatal error: ");
+   fprintf(stderr, "\nFatal error: ");
    vfprintf(stderr, fmt, ap);
    putc('\n', stderr);
    va_end(ap);
    exit(1);
+}
+
+
+bool am_i_newworld(void)
+{
+   FILE *f;
+   char s[256];
+   char *ps;
+
+   if ((f = fopen("/proc/cpuinfo","r")) == NULL) {
+      fatal("Could not open /proc/cpuinfo!\n");
+   }
+
+   while (!feof(f)) {
+      ps = fgets(s, 256, f);
+      if (ps != NULL &&
+          !strcmp(ps, "pmac-generation\t: NewWorld\n")) {
+         return true;
+      }
+   }
+
+   return false;
 }
 
 
@@ -453,30 +477,6 @@ int main(int argc,char **argv)
    ssize_t secsize = 0;
    ssize_t stage_size = 0;
 
-   /*
-    * Test if we're being run on a CHRP machine.  We don't
-    * need to be run on a CHRP machine, as the later can
-    * run the ELF directly.
-    *  -- Cort
-    */
-   {
-      FILE *f;
-      char s[256];
-      char *ps;
-
-      if ((f = fopen("/proc/cpuinfo","r")) == NULL) {
-         fatal("Could not open /proc/cpuinfo!\n");
-      }
-
-      while (!feof(f)) {
-         ps = fgets(s, 256, f);
-         if (ps != NULL &&
-             !strncmp(ps, "machine\t\t: CHRP", 15)) {
-            fatal("iQUIK must be installed differently on CHRP machines\n");
-         }
-      }
-   }
-
    while ((c = getopt(argc, argv, "p:b:d:r:vVTh")) != -1) {
       switch(c) {
       case 'p':
@@ -522,6 +522,16 @@ int main(int argc,char **argv)
    name = chrootcpy(new_root, name);
    if (stat(name, &st1) < 0) {
       fatal("Cannot open iQUIK boot block '%s'", name);
+   }
+
+   if (basedev == NULL &&
+       am_i_newworld()) {
+      fatal("You must use the '-d' flag to specify device to install\n"
+            "when running on a NewWorld. This is because iQUIK will trash your\n"
+            "Yaboot Apple_Bootstrap partition and the resulting system *WILL NOT*\n"
+            "be bootable, because NewWorlds cannot boot via partition zero blocks.\n"
+            "If you want to boot a NewWorld, you must launch '%s'\n"
+            "directly from OF.\n", name);
    }
 
    if (basedev == NULL) {

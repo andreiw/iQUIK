@@ -1,7 +1,10 @@
 iQUIK on a NewWorld
 ===================
 
-Parition-zero booting on OF 3.0 doesn't seem to work. Investigating.
+Parition-zero booting on OF 3.0 is not supported. Had Apple
+made NewWorlds fully CHRP-compatible, then you should have
+been able to boot like 'hd:%BOOT', similar to QEMU with
+OpenBIOS.
 
 However, iquik.elf can be booted the same way as yaboot. Put it on a
 an HFS+ partition of type Apple_Bootstrap, and bless the image.
