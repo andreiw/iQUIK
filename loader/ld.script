@@ -18,6 +18,11 @@ SECTIONS
     *(.sdata)
     *(.sdata2)
 
+    . = ALIGN(4);
+    _commands = .;
+    *(.commands)
+    _commands_end = .;
+
     _bss_start = .;
     *(.sbss)
     *(.bss)

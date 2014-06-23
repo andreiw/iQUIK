@@ -304,7 +304,7 @@ noconv:
 
 key_t
 wait_for_key(int timeout,
-	     key_t timeout_key)
+             key_t timeout_key)
 {
    int end;
    int beg = 0;
@@ -331,4 +331,40 @@ wait_for_key(int timeout,
    }
 
    return c;
+}
+
+
+void
+table_print_start(table_print_t *t, unsigned cols, unsigned pad)
+{
+   t->max_col = cols;
+   t->pad = pad;
+   t->count = 0;
+}
+
+
+void table_print(table_print_t *t, char *s)
+{
+   int len = strlen(s);
+
+   if (t->count != 0 &&
+       (t->count % t->max_col) == 0) {
+      putchar('\n');
+   }
+
+   printk("%s", s);
+   while (len++ < t->pad) {
+      putchar(' ');
+   }
+
+   t->count++;
+}
+
+
+void
+table_print_end(table_print_t *t)
+{
+   if (t->count) {
+      putchar('\n');
+   }
 }

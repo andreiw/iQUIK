@@ -92,6 +92,8 @@ typedef struct {
    QUIK_ERR_DEF(ERR_ENV_DEFAULT_BAD, "bad default device path")         \
    QUIK_ERR_DEF(ERR_ENV_CURRENT_BAD, "bad current device path")         \
    QUIK_ERR_DEF(ERR_ENV_PREBOOT_BAD, "no boot-file set by preboot script") \
+   QUIK_ERR_DEF(ERR_CMD_UNKNOWN, "unknown command")                     \
+   QUIK_ERR_DEF(ERR_CMD_BAD_PARAM, "invalid parameters")                \
    QUIK_ERR_DEF(ERR_INVALID, "invalid error, likely a bug")             \
 
 #define QUIK_ERR_DEF(e, s) e,
@@ -121,6 +123,7 @@ typedef struct {
 #define BOOT_PRE_2_4          (1 << 5)
 #define SHIM_OF               (1 << 6)
 #define WITH_PREBOOT          (1 << 7)
+#define HAVE_IMAGES           (1 << 8)
    unsigned flags;
 
    /* Config file path. E.g. /etc/quik.conf */
@@ -160,9 +163,6 @@ typedef int key_t;
 #define PREBOOT_TIMEOUT 50
 #define TIMEOUT_TO_SECS(t) (t / 10)
 
-quik_err_t cmd_init(void);
-char *cmd_edit(void (*tabfunc)(char *buf), key_t c);
-
 quik_err_t elf_parse(void *load_buf,
                      length_t load_buf_len,
                      load_state_t *image);
@@ -190,6 +190,15 @@ void spinner(int freq);
 void flush_cache(vaddr_t base, length_t len);
 void vprintk(char *fmt, va_list adx);
 void printk(char *fmt, ...);
+
+typedef struct {
+   unsigned count;
+   unsigned max_col;
+   unsigned pad;
+} table_print_t;
+void table_print_start(table_print_t *t, unsigned cols, unsigned pad);
+void table_print(table_print_t *t, char *s);
+void table_print_end(table_print_t *t);
 
 uint32_t swab32(uint32_t value);
 uint16_t swab16(uint16_t value);

@@ -1,7 +1,8 @@
 /*
- * FS support.
+ * Command handling.
  *
  * Copyright (C) 2013 Andrei Warkentin <andrey.warkentin@gmail.com>
+ * Copyright (C) 1996 Paul Mackerras.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,32 +19,26 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#ifndef QUIK_FS_H
-#define QUIK_FS_H
+#ifndef QUIK_COMMANDS_H
+#define QUIK_COMMANDS_H
+
+#define CMD_STRCMP
+#define CMD_MEMCMP
 
 typedef struct {
-   char *device;
-   unsigned part;
-   char *path;
-} path_t;
+   char *name;
+   quik_err_t (*fn)(char *args);
+   char *desc;
+} command_t;
 
-quik_err_t
-file_path(char *pathspec,
-          env_dev_t *default_dev,
-          path_t **path);
+#define COMMAND(n, f, d)                                            \
+   command_t cmd_desc_ ## n __attribute__ ((section (".commands"))) = { .name = "!"#n, .fn = f, .desc = d }
 
-quik_err_t
-file_len(path_t *path,
-         length_t *len);
+extern command_t _commands;
+extern command_t _commands_end;
 
-quik_err_t
-file_load(path_t *path,
-          void *buffer);
+quik_err_t cmd_init(void);
+char *cmd_edit(void (*tabfunc)(char *buf), key_t c);
+void cmd_show_commands(void);
 
-quik_err_t
-file_ls(path_t *path);
-
-quik_err_t
-file_cmd_cat(char *pathspec);
-
-#endif /* QUIK_FS_H */
+#endif /* QUIK_COMMANDS_H */

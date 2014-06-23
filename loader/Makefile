@@ -29,9 +29,9 @@ LD = $(CROSS)ld
 
 all: $(PRETARGET) $(NAME).b
 
-OBJ = crt0.o elf.o printf.o malloc.o main.o cmdline.o disk.o file.o \
+OBJ = crt0.o elf.o printf.o malloc.o main.o disk.o file.o \
       cfg.o prom.o cache.o string.o setjmp.o util.o part.o \
-      crtsavres.o ext2fs.o env.o
+      crtsavres.o ext2fs.o env.o commands.o
 
 %.o: %.c
 	$(CC) -c -MMD $(CFLAGS) $<

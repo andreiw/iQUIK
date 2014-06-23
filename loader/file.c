@@ -23,6 +23,7 @@
 #include "quik.h"
 #include "file.h"
 #include "ext2fs.h"
+#include "commands.h"
 
 static part_t part;
 
@@ -188,3 +189,83 @@ bad_path:
    free(p);
    return ERR_FS_PATH;
 }
+
+
+quik_err_t
+file_cmd_cat(char *p)
+{
+   char *message;
+   length_t len;
+   quik_err_t err;
+   path_t *path = NULL;
+
+   /* Need a path. */
+   if (strlen(p) == 0) {
+      return ERR_CMD_BAD_PARAM;
+   }
+
+   err = file_path(p, &bi->default_dev, &path);
+   if (err != ERR_NONE) {
+      if (err == ERR_ENV_CURRENT_BAD) {
+         err = ERR_ENV_DEFAULT_BAD;
+      }
+
+      return err;
+   }
+
+   err = file_len(path, &len);
+   if (err != ERR_NONE) {
+      free(path);
+      return err;
+   }
+
+   message = malloc(len);
+   if (message == NULL) {
+      free(path);
+      return err;
+   }
+   err = file_load(path, message);
+   if (err == ERR_NONE) {
+      message[len] = 0;
+      printk("%s", message);
+   }
+
+   free(message);
+   free(path);
+   return err;
+}
+
+COMMAND(cat, file_cmd_cat, "show file contents given a [device:part]/fs/path");
+
+
+static quik_err_t
+file_cmd_ls(char *args)
+{
+   path_t *path;
+   quik_err_t err;
+
+   /*
+    * Nothing means just list the current device.
+    */
+   if (strlen(args) == 0) {
+      args = "/";
+   }
+
+   err = file_path(args, &bi->default_dev, &path);
+   if (err != ERR_NONE) {
+      if (err == ERR_ENV_CURRENT_BAD) {
+         err = ERR_ENV_DEFAULT_BAD;
+      }
+
+      return err;
+   }
+
+   printk("Listing '%P'\n", path);
+   err = file_ls(path);
+
+   free(path);
+   return err;
+}
+
+COMMAND(ls, file_cmd_ls, "list files given a [device:part][/fs/path]");
+

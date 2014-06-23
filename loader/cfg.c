@@ -229,7 +229,7 @@ static char *cfg_get_token (void)
    return 0;        /* not reached */
 }
 
-static void cfg_return_token (char *token)
+static void cfg_return_token(char *token)
 {
    last_token = token;
 }
@@ -275,13 +275,18 @@ static int cfg_set (char *item, char *value)
    if (!strcasecmp (item, "image")) {
       struct IMAGES **p = &images;
 
-      while (*p)
+      while (*p) {
          p = &((*p)->next);
+      }
+
       *p = malloc (sizeof (struct IMAGES));
       (*p)->next = 0;
+      bi->flags |= HAVE_IMAGES;
+
       curr_table = ((*p)->table);
       memcpy (curr_table, cf_image, sizeof (cf_image));
    }
+
    for (walk = curr_table; walk->type != cft_end; walk++) {
       if (walk->name && !strcasecmp (walk->name, item)) {
          if (value && walk->type != cft_strg)
@@ -296,12 +301,15 @@ static int cfg_set (char *item, char *value)
             else if (walk->type == cft_strg)
                walk->data = value;
          }
+
          break;
       }
    }
-   if (walk->type != cft_end)
+   if (walk->type != cft_end) {
       return 1;
-   cfg_return (item, value);
+   }
+
+   cfg_return(item, value);
    return 0;
 }
 
@@ -366,45 +374,33 @@ int cfg_get_flag (char *image, char *item)
    return !!cfg_get_strg (image, item);
 }
 
-static int printl_count = 0;
-static void printlabel (char *label)
-{
-   int len = strlen (label);
-
-   if (!printl_count)
-      printk ("\n");
-   printk ("%s", label);
-   while (len++ < 25)
-      putchar (' ');
-   printl_count++;
-   if (printl_count == 3)
-      printl_count = 0;
-}
 
 void cfg_print_images(void)
 {
    struct IMAGES *p;
    char *label, *alias;
+   table_print_t tp;
 
-   printl_count = 0;
+   table_print_start(&tp, 3, 25);
+
    for (p = images; p; p = p->next) {
       label = cfg_get_strg_i (p->table, "label");
       if (!label) {
-         label = cfg_get_strg_i (p->table, "image");
+         label = cfg_get_strg_i(p->table, "image");
          alias = strrchr (label, '/');
-         if (alias)
+         if (alias) {
             label = alias + 1;
+         }
       }
+
       alias = cfg_get_strg_i (p->table, "alias");
-      printlabel (label);
-      if (alias)
-         printlabel (alias);
+      table_print(&tp, label);
+      if (alias) {
+         table_print(&tp, alias);
+      }
    }
 
-   printk("\nYou can also type in custom image locations, like:\n");
-   printk("[device:][partno]/vmlinux\n");
-   printk("[device:][partno]/vmlinux -- kernel arguments\n");
-   printk("[device:][partno]/vmlinux [device:][partno]/initrd kernel arguments\n");
+   table_print_end(&tp);
 }
 
 char *cfg_get_default (void)
@@ -423,5 +419,6 @@ char *cfg_get_default (void)
       if (label)
          ret = label + 1;
    }
+
    return ret;
 }

@@ -33,6 +33,8 @@
 #include "prom.h"
 #include <layout.h>
 
+#include "commands.h"
+
 #define PROMPT "boot: "
 
 boot_info_t *bi = { 0 };
@@ -41,10 +43,20 @@ boot_info_t *bi = { 0 };
 static void
 maintabfunc(char *buf)
 {
-   if (bi->flags & CONFIG_VALID) {
+   putchar('\n');
+   cmd_show_commands();
+
+   if (bi->flags & HAVE_IMAGES) {
+      printk("\nKnown selections:\n");
       cfg_print_images();
-      printk(PROMPT"%s", buf);
    }
+
+   printk("\nYou can also type in custom image locations, like:\n");
+   printk("[device:][partno]/vmlinux\n");
+   printk("[device:][partno]/vmlinux -- kernel arguments\n");
+   printk("[device:][partno]/vmlinux [device:][partno]/initrd kernel arguments\n");
+
+   printk(PROMPT"%s", buf);
 }
 
 
@@ -125,99 +137,6 @@ make_params(char *label,
    }
 
    return buffer;
-}
-
-
-static void
-command_ls(char *args)
-{
-   path_t *path;
-   quik_err_t err;
-
-   /*
-    * Nothing means just list the current device.
-    */
-   args = chomp(args);
-   if (strlen(args) == 0) {
-      args = "/";
-   }
-
-   err = file_path(args, &bi->default_dev, &path);
-   if (err != ERR_NONE) {
-      if (err == ERR_ENV_CURRENT_BAD) {
-         err = ERR_ENV_DEFAULT_BAD;
-      }
-
-      printk("Error listing '%s': %r\n",
-             args, err);
-      return;
-   }
-
-   printk("Listing '%P'\n", path);
-   err = file_ls(path);
-   if (err != ERR_NONE) {
-      printk("Error listing '%P': %r\n",
-             path, err);
-   }
-
-   free(path);
-}
-
-
-static void
-command_cat(char *p)
-{
-   char *message;
-   length_t len;
-   quik_err_t err;
-   path_t *path = NULL;
-
-   /*
-    * Nothing means nothing.
-    */
-   p = chomp(p);
-   if (strlen(p) == 0) {
-      printk("No file path provided\n");
-      return;
-   }
-
-   err = file_path(p, &bi->default_dev, &path);
-   if (err != ERR_NONE) {
-      if (err == ERR_ENV_CURRENT_BAD) {
-         err = ERR_ENV_DEFAULT_BAD;
-      }
-
-      printk("Error opening '%s': %r\n",
-             p, err);
-      return;
-   }
-
-   err = file_len(path, &len);
-   if (err != ERR_NONE) {
-      printk("Error opening '%P': %r\n",
-             path, err);
-      free(path);
-      return;
-   }
-
-   message = malloc(len);
-   if (message == NULL) {
-      printk("Error catting '%P': %r\n",
-             path, ERR_NO_MEM);
-      free(path);
-      return;
-   }
-   err = file_load(path, message);
-   if (err == ERR_NONE) {
-      message[len] = 0;
-      printk("%s", message);
-   } else {
-      printk("Error opening '%P': %r\n",
-             path, err);
-   }
-
-   free(message);
-   free(path);
 }
 
 
@@ -315,33 +234,51 @@ load_config(void)
 
    p = cfg_get_strg(0, "message");
    if (p) {
-      command_cat(p);
+      file_cmd_cat(p);
    }
 
    return ERR_NONE;
 }
 
 
-static void
-bang_commands(char *args)
+static quik_err_t
+cmd_shim(char *args)
 {
-   if (!strcmp(args, "debug")) {
-      bi->flags |= DEBUG_BEFORE_BOOT;
-   } else if (!strcmp(args, "shim")) {
-      bi->flags |= SHIM_OF;
-   } else if (!strcmp(args, "halt")) {
-      prom_pause(NULL);
-   } else if (!memcmp(args, "ls", 2)) {
-      command_ls(args + 2);
-   } else if (!memcmp(args, "cat ", 4)) {
-      command_cat(args + 3);
-   } else if (!memcmp(args, "of ", 3)) {
-      prom_interpret(args + 3);
-      printk("\n");
-   } else {
-      printk("Available commands: !debug, !shim, !halt, !ls, !cat, !of\n");
-   }
+   bi->flags |= SHIM_OF;
+   return ERR_NONE;
 }
+
+COMMAND(shim, cmd_shim, "force usage of OF shim");
+
+
+static quik_err_t
+cmd_debug(char *args)
+{
+   bi->flags |= DEBUG_BEFORE_BOOT;
+   return ERR_NONE;
+}
+
+COMMAND(debug, cmd_debug, "show debug info");
+
+
+static quik_err_t
+cmd_halt(char *args)
+{
+   prom_pause(NULL);
+   return ERR_NONE;
+}
+
+COMMAND(halt, cmd_halt, "break into OF");
+
+
+static quik_err_t
+cmd_of_interp(char *args)
+{
+   prom_interpret(args);
+   return ERR_NONE;
+}
+
+COMMAND(of, cmd_of_interp, "intepret a series of OF commands");
 
 
 static quik_err_t
@@ -403,10 +340,7 @@ get_params(char **kernel,
       *kernel = NULL;
 
       buf = cmd_edit(maintabfunc, lastkey);
-      printk("\n");
-
-      if (buf[0] == '!') {
-         bang_commands(buf + 1);
+      if (buf == NULL) {
          return ERR_NOT_READY;
       }
 
@@ -701,3 +635,11 @@ error:
    printk("Exiting on error: %r", err);
    prom_exit();
 }
+
+
+quik_err_t test_command(char *args)
+{
+  printk("just a test\n");
+  return ERR_NONE;
+}
+
