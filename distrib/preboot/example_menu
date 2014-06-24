@@ -1,4 +1,4 @@
-: setboot " boot-file" $setenv
+: setboot " boot-file" $setenv ;
 : bx-boot-opts 5 ; ( unit = 100 ms )
 : bx-boot-wait d# 100 ;
 : bx-boot-defopt 1 ;
