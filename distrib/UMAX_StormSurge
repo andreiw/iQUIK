@@ -1,0 +1,27 @@
+iQUIK on a UMAX StormSurge
+==========================
+
+The UMAX clone has a 604e (can be dual) and uses OpenFirmware 1.0.5.
+
+It's a SCSI system.
+
+You can boot from:
+* Floppy
+* Internal SCSI MESH harddrive
+* CD boot is untested
+
+OF defaults to ttya (first serial port) for input-device and output-device. I don't
+like using serial, so I change mine to ADB keyboard and framebuffer.
+
+input-device /bandit/gc/via-cuda/adb/keyboard
+
+Since I have the IMS video, for me:
+
+output-device /bandit/IMS,tt128mb
+
+To boot from MESH SCSI disk:
+
+boot-device /bandit/gc/mesh/sd@0:0
+
+Follow the README.
+

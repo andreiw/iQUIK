@@ -2,10 +2,32 @@
 
 .section ".start"
 .globl _start
+.globl _end
 .globl _stack_top
 .globl _bss_start
 .globl _bss_end
 _start:
+
+/*
+ * Ensure consistent I+D caches. We could
+ * I suppose fetch the cache line size, but this
+ * would explode the code size (since we need to
+ * do OF calls) and increase complexity at
+ * no real gain.
+ *
+ * Too bad they got rid of 'clcs' in PowerPC.
+ */
+	lis	10,_start@h
+	ori	10,10,_start@l
+	lis	11,_end@h
+	ori	11,11,_end@l
+1:	dcbf	0,10
+	icbi	0,10
+	addi	10,10,4
+	cmp	0,10,11
+	bne	1b
+	sync
+	isync
 
 /* Clear BSS. */
         lis     10,_bss_start@h

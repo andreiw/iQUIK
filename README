@@ -20,8 +20,7 @@ a number of important ways:
 2) It can load an initrd.
 3) Introduces a layer to shim OF accesses during kernel
    bootup, to work around OF bugs:
-   a) It tries working around OF 1.0.5 bugs but I've no
-      systems to test with at the moment.
+   a) It works around OF 1.0.5 bugs.
    b) It works around PB3400c hangs with media bay ATA
       discovery handling with 2.6 kernels with no
       ATA/ATAPI devices in the mediabay.
@@ -42,14 +41,16 @@ a number of important ways:
 Support
 =======
 
-Although meant for OldWorlds in general, it has only been tested
-on a PowerBook 3400c with OF 2.0.1 and PowerBook G3 PDQ with
-OF 2.0.1. Testing on a UMAX clone with 1.0.5 is next. It would be nice
-to test with 2.4 and maybe even a NewWorld, although the later isn't a goal.
-See distrib/ for docs on getting to run on certain hardware (including qemu).
+Meant for OldWorlds in general, it has only been tested on:
+1) PowerBook 3400c (OF 2.0.1, 603e)
+2) PowerBook Wallstreet II (PDQ) (OF 2.0.1, G3)
+3) UMAX StormSurge (OF 1.0.5, 604e)
 
-You can boot Wheezy (2.6.32). It can probably boot later
-kernels too, although that is still untested.
+It would be nice to test with 2.4 and maybe even a NewWorld,
+although the later isn't a goal. See distrib/ for docs on getting
+to run on certain hardware (including qemu).
+
+Tested with 3.2 kernels and older.
 
 Also, see below Apple link for NVRAMRC patches necessary, as documentation
 under distrib/ is only for machines I have. Documentation and functionality
@@ -251,11 +252,10 @@ The next items I'll probably look at, are (in no order):
 
 1) Testing with Debian/unstable and a 3.X kernel.
 2) FAT and ISO9660 support.
-3) OF 1.0.5 testing.
-4) More uncruftification.
-5) Allow specifying a whole disk file system (need partitions today).
-6) Build an XCOFF variant for loading from iso9660, enet, etc.
-7) Check model and apply nvramrc patches
+3) More uncruftification.
+4) Allow specifying a whole disk file system (need partitions today).
+5) Build an XCOFF variant for loading from iso9660, enet, etc.
+6) Check model and apply nvramrc patches
 
 
 Contact Info
