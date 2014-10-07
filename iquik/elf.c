@@ -111,7 +111,7 @@ quik_err_t elf_relo(boot_info_t *bi,
                     load_state_t *image)
 {
    if (bi->flags & BOOT_PRE_2_4) {
-      if (image->text_len > SECOND_BASE) {
+      if (image->text_len > IQUIK_BASE) {
          return ERR_KERNEL_OLD_BIG;
       }
 

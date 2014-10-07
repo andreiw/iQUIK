@@ -13,10 +13,15 @@
 #define VERSION        "3.0"
 
 /*
+ * Preboot stuff can't be any lower than this address.
+ */
+#define PREBOOT_BASE    0x3d0000
+
+/*
  * Boot code load address and max size.
  */
-#define SECOND_BASE     0x3e0000
-#define SECOND_SIZE     0x20000
+#define IQUIK_BASE      0x3e0000
+#define IQUIK_SIZE      0x20000
 
 /*
  * 0x400000 - 0x500000 is one of OldWorld OF's favourite places to be,
@@ -26,6 +31,6 @@
 #define MALLOC_SIZE     0x300000
 
 /*
- * Anything loaded by iquik gets put here.
+ * Anything loaded by iquik gets put above this address.
  */
 #define LOAD_BASE       0x800000

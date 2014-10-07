@@ -1,4 +1,4 @@
-DIRS=	util second quik
+DIRS=	util iquik preboot installer
 .EXPORT_ALL_VARIABLES:
 CC=gcc
 
@@ -11,8 +11,9 @@ install:
 	install -d -m 755 $(DESTDIR)/etc
 	install -d -m 755 $(DESTDIR)/usr/man/man5
 	install -d -m 755 $(DESTDIR)/usr/man/man8
-	install -s quik/quik $(DESTDIR)/sbin
-	install -m 444 second/second.b second/second $(DESTDIR)/boot
+	install -s installer/iquik $(DESTDIR)/sbin
+	install -m 444 iquik/iquik.b $(DESTDIR)/boot
+	install -m 444 preboot/preboot.b $(DESTDIR)/boot
 	if [ -f $(DESTDIR)/etc/quik.conf ]; then :; \
 	  else set -x; install -m 644 etc/quik.conf $(DESTDIR)/etc; fi
 	install -m 444 man/quik.conf.5 $(DESTDIR)/usr/man/man5

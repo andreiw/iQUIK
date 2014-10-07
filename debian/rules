@@ -30,9 +30,8 @@ binary-arch: build
 	dh_clean -k
 	dh_installdirs boot etc sbin usr/share/man usr/sbin usr/share/doc
 	install -m 755 -g root -o root quik/quik debian/$(package)/sbin/$(package)
-	install -m 644 -g root -o root first/first.b second/second.b debian/$(package)/boot
-#	install -m 644 -g root -o root debian/bootinfo.txt debian/$(package)/boot/ppc
-#	install -m 755 -g root -o root second/second debian/$(package)/boot/ppc
+	install -m 644 -g root -o root iquik/iquik.b debian/$(package)/boot
+	install -m 644 -g root -o root preboot/preboot.b debian/$(package)/boot
 	install -m 755 -g root -o root debian/quikconfig debian/$(package)/usr/sbin
 	dh_installdocs
 	dh_installman man/quik.conf.5 man/quik.8 man/quikconfig.8
@@ -41,7 +40,6 @@ binary-arch: build
 	dh_strip -v
 	dh_compress
 	dh_fixperms
-#	chmod +x debian/$(package)/boot/ppc/second
 	dh_shlibdeps
 	dh_installdeb
 	dh_gencontrol

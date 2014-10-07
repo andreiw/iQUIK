@@ -1,0 +1,36 @@
+OUTPUT_ARCH(powerpc)
+ENTRY(_start)
+SECTIONS
+{
+  .text : {
+    *(.start)
+    *(.text)
+    *(.text.*)
+    *(.rodata)
+    *(.rodata1)
+    *(.rodata.*)
+    *(.got1)
+
+    *(.data)
+    *(.data1)
+    *(.got.plt)
+    *(.got)
+    *(.sdata)
+    *(.sdata2)
+
+    _bss_start = .;
+    *(.sbss)
+    *(.bss)
+    *(.scommon)
+    *(COMMON)
+    _bss_end = .;
+
+    . = ALIGN(4);
+    _stack_start = .;
+    . += 4096;
+    _stack_top = .;
+  }
+
+  _end = .;
+}
+

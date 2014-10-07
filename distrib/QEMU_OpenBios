@@ -4,7 +4,7 @@
 \ from iQUIK distrib.
 \
 \ Unlike a PowerMac's OF, OpenBIOS doesn't support partition-zero booting.
-\ We could of course boot the 'second' ELF that the raw boot block
+\ We could of course boot the 'iquik' ELF that the raw boot block
 \ is generated from, but that would be cheating ;-).
 \
 \ Again, none of this is necessary on an OldWorld mac. Write floppy.img
@@ -29,7 +29,7 @@
 
 \
 \ size and load-base need to match
-\ SECOND_BASE and SECOND_SIZE in
+\ IQUIK_BASE and IQUIK_SIZE in
 \ quik/include/layout
 \
 20000 value size

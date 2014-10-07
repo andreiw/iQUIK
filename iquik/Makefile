@@ -5,8 +5,9 @@
 CFLAGS = -I../include -O2 -D__NO_STRING_INLINES -nostdlib -fno-builtin -Werror -Wall
 ASFLAGS=-D__ASSEMBLY__ -I../include
 LDFLAGS=-T ld.script -N -Ttext 0x3e0000
+NAME = iquik
 
-all: second.b
+all: $(NAME).b
 
 OBJ = crt0.o elf.o printf.o malloc.o main.o cmdline.o disk.o file.o \
       cfg.o prom.o cache.o string.o setjmp.o util.o part.o \
@@ -28,11 +29,11 @@ OBJ = crt0.o elf.o printf.o malloc.o main.o cmdline.o disk.o file.o \
 
 -include $(OBJ:.o=.d)
 
-second: $(OBJ)
-	$(LD) $(LDFLAGS) -Bstatic -o second $^
+$(NAME): $(OBJ)
+	$(LD) $(LDFLAGS) -Bstatic -o $@ $^
 
 clean:
-	$(RM) *.o second second.b core *~ *.d
+	$(RM) *.o $(NAME) $(NAME).b core *~ *.d
 
-second.b: second
-	../util/elfextract second second.b
+$(NAME).b: $(NAME)
+	../util/elfextract $< $@

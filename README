@@ -62,14 +62,14 @@ Prebuilts
 =========
 
 I've checked-in the current prebuilts for iQUIK under distrib/.
-* 'quik' is the installer, built under Wheezy.
-* 'second.b' is the iQUIK boot code
-* 'quik.conf' is pretty self-explanatory. It doesn't try to be
+* 'iquik' is the installer, built under Wheezy.
+* 'iquik.b' is the iQUIK boot code
+* 'iquik.conf' is pretty self-explanatory. It doesn't try to be
    exhaustive.
 * 'floppy.img' can be written out to a 1.44MB and booted via 'boot fd:0'.
 
 [ The 'floppy-cfg.img' is an example image with a config file. It can
-  be booted with 'boot fd:0 fd:3/quik.conf'. If you're wondering
+  be booted with 'boot fd:0 fd:3/iquik.conf'. If you're wondering
   how to create partitions either use loopback or a USB floppy, which
   appears as a SCSI device ]
 
@@ -89,9 +89,9 @@ OF will boot the device listed under the 'boot-device' environment variable.
 In our case it has to be the "partition zero" of whatever device you installed
 iQUIK onto.
 
-iQUIK will then try to locate the quik.conf file using the path in
-'boot-file'. It will also, on failure, try /etc/quik.conf, /boot/quik.conf
-and /quik.conf.
+iQUIK will then try to locate the iquik.conf file using the path in
+'boot-file'. It will also, on failure, try /etc/iquik.conf, /boot/iquik.conf
+and /iquik.conf, as well as the quik.conf variants.
 
 For me:
 boot-device     ata0/ata-disk@0:0
@@ -101,7 +101,7 @@ boot-file       ata0/ata-disk@0:4
 
 Another example:
 boot-device     upper/pccard45,401@0:0
-boot-file       upper/pccard45,401@0:3/installer/quik.conf 
+boot-file       upper/pccard45,401@0:3/installer/iquik.conf 
 
 iQUIK will then parse quik.conf similar to Yaboot, the old QUIK, MILO, LILO, etc.
 
@@ -118,7 +118,7 @@ kernel with any initrd and any parameters, e.g.:
 Installing
 ==========
 
-Whatever medium you want to install QUIK on, it has to:
+Whatever medium you want to install iQUIK on, it has to:
 1) Be mac partitioned
 2) Contain an Apple_Bootstrap partition.
 
@@ -142,27 +142,27 @@ and the 'b' command to create the new 800K bootstrap partition.
 
 NOTE: It's possible to run into OF problems booting large disks. It's
 probably better to create a /boot partition to contain vmlinux, initrd,
-and quik.conf right after the bootstrap partition.
+and iquik.conf right after the bootstrap partition.
 
 Assuming the physical disk you've prepared as above contains your
 root partition (with /boot), running 
 
-$ quik
+$ iquik
 
-...should be sufficient. 'quik -v' for verbosity. 'quik -T -v'
-if you just want to see what quik would have done. The tool will
+...should be sufficient. 'iquik -v' for verbosity. 'iquik -T -v'
+if you just want to see what iquik would have done. The tool will
 not do anything if you don't have an Apple_Bootstrap partition.
 
 If you want to install on some other media, use the '-d' flag:
 
-$ quik -d /dev/fd0
+$ iquik -d /dev/fd0
 
-If you want to use an alternate second.b (instead of the one in /boot),
+If you want to use an alternate iquik.b (instead of the one in /boot),
 use the '-b' flag:
 
-$ quik -b /my/hacked/second.b
+$ iquik -b /my/hacked/iquik.b
 
-NOTE: the 'quik' tool doesn't set the NVRAM variables itself. You
+NOTE: the 'iquik' tool doesn't set the NVRAM variables itself. You
 need to do that yourself.
 
 Example:
@@ -250,12 +250,11 @@ Future development
 
 The next items I'll probably look at, are (in no order):
 
-1) Testing with Debian/unstable and a 3.X kernel.
-2) FAT and ISO9660 support.
-3) More uncruftification.
-4) Allow specifying a whole disk file system (need partitions today).
-5) Build an XCOFF variant for loading from iso9660, enet, etc.
-6) Check model and apply nvramrc patches
+1) FAT and ISO9660 support.
+2) More uncruftification.
+3) Allow specifying a whole disk file system (need partitions today).
+4) Build an XCOFF variant for loading from iso9660, enet, etc.
+5) Check model and apply nvramrc patches
 
 
 Contact Info

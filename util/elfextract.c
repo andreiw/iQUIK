@@ -83,9 +83,9 @@ main(int ac, char **av)
       exit(1);
    }
 
-   if (phsize > SECOND_SIZE) {
-      fprintf(stderr, "%s grew beyond SECOND_SIZE (0x%x instead of 0x%x)\n",
-             phsize, SECOND_SIZE, ni);
+   if (phsize > IQUIK_SIZE) {
+      fprintf(stderr, "%s grew beyond IQUIK_SIZE (0x%x instead of 0x%x)\n",
+             phsize, IQUIK_SIZE, ni);
       exit(1);
    }
 

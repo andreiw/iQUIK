@@ -214,7 +214,9 @@ load_config(boot_info_t *bi)
    quik_err_t err = ERR_NONE;
    char *attempts[] = {
       bi->config_file,
+      "/boot/iquik.conf",
       "/boot/quik.conf",
+      "/boot/iquik.conf",
       "/quik.conf",
       NULL
    };

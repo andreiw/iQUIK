@@ -1,5 +1,5 @@
 /*
- * quik - bootblock installation program for Linux on Power Macintosh.
+ * iquik - bootblock installation program for Linux on Power Macintosh.
  *
  * Copyright (C) 2013 Andrei Warkentin <andrey.warkentin@gmail.c>
  * Copyright (C) 1996 Paul Mackerras.
@@ -38,7 +38,7 @@
 #include <asm/mac-part.h>
 #include <layout.h>
 
-#define DFL_SECONDARY   "/boot/second.b"
+#define DFL_BOOTBLOCK   "/boot/iquik.b"
 
 #define SD_MAJOR        8       /* Major device no. for scsi disks */
 #define HDA_MAJOR       3       /* major number for hda and hdb */
@@ -211,7 +211,7 @@ void usage(char *s)
           "Usage: '%s' [options]\n"
           "Options:\n"
           " -r root_path chroots into root_path (all paths relative to this)\n"
-          " -b secondary use secondary as boot code instead of /boot/second.b\n"
+          " -b bblock    use bblock as boot code instead of /boot/iquik.b\n"
           " -d           install boot code to alternate device (e.g. /dev/fd0)\n"
           " -v           verbose mode\n"
           " -T           test mode (no actual writes)\n"
@@ -385,7 +385,7 @@ int main(int argc,char **argv)
 {
    char *new_root = NULL;
    char *basedev = NULL;
-   char *name = DFL_SECONDARY;
+   char *name = DFL_BOOTBLOCK;
    int c;
    struct stat st1;
    int version = 0;
@@ -502,7 +502,7 @@ int main(int argc,char **argv)
                  secsize,
                  part_index,
                  stage_size,
-                 SECOND_BASE);
+                 IQUIK_BASE);
    sync();
    exit(0);
 }

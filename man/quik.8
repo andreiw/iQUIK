@@ -38,7 +38,7 @@ block number table.
 .TP
 .B \-b \fIsecond-stage
 Use \fIsecond-stage\fR as the second-stage boot image, instead of the
-default \fB/boot/second.b\fR.  The second-stage boot image must be on
+default \fB/boot/iquik.b\fR.  The second-stage boot image must be on
 the same disk as the boot block, though not necessarily on the same
 partition.
 .TP
@@ -78,9 +78,8 @@ Verbose mode: print messages indicating what quik is doing.
 Print quik's version number and exit.
 .SH FILES
 .nf
-/boot/first.b
-/boot/second.b
-/etc/quik.conf
+/boot/iquik.b
+/etc/iquik.conf
 .fi
 .SH AUTHORS
 Paul Mackerras, based on the Sparc bootstrap installation program by

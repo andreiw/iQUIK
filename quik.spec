@@ -84,10 +84,9 @@ fi
 rm -rf $RPM_BUILD_ROOT
 
 %files
-/sbin/quik
-/boot/first.b
-/boot/second.b
-/boot/second
+/sbin/iquik
+/boot/preboot.b
+/boot/iquik.b
 %config /etc/quik.conf
 /usr/man/man5/quik.conf.5
 /usr/man/man8/quik.8
