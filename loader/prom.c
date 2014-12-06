@@ -17,6 +17,7 @@
 
 #include "quik.h"
 #include "prom.h"
+#include "commands.h"
 
 #define PROM_CLAIM_MAX_ADDR (0x10000000)
 
@@ -36,6 +37,7 @@ ihandle prom_memory;
  */
 #define OF_VER_105 "Open Firmware, 1.0.5"
 #define OF_VER_201 "Open Firmware, 2.0.1"
+#define OF_VER_20  "Open Firmware, 2.0"
 #define OF_VER_3   "OpenFirmware 3"
 #define OF_VER_NW  "iMac,1"
 
@@ -44,6 +46,7 @@ ihandle prom_memory;
  */
 #define SYSTEM_3400_2400  "AAPL,3400/2400"
 #define SYSTEM_WALLSTREET "AAPL,PowerBook1998"
+#define SYSTEM_6400       "AAPL,e407"
 
 /* OF 1.0.5 claim bug. */
 #define PROM_CLAIM_WORK_AROUND      (1 << 1)
@@ -51,7 +54,7 @@ ihandle prom_memory;
 /* Certain bugs need us to shim away OF from the kernel. */
 #define PROM_NEED_SHIM              (1 << 2)
 
-/* OF 2.0.1 on some machines - setprop doesn't do deep copy = no initrd. */
+/* OF 2.0.X on some machines - setprop doesn't do deep copy = no initrd. */
 #define PROM_SHALLOW_SETPROP        (1 << 3)
 
 /* 3400c Recent kernels hang initializing mediabay ATA. */
@@ -67,8 +70,9 @@ static unsigned prom_flags = 0;
 static struct prom_args prom_args;
 
 typedef struct of_shim_state {
-
-   /* For PROM_3400_HIDE_MEDIABAY_ATA. */
+   /*
+    * For PROM_3400_HIDE_MEDIABAY_ATA.
+    */
    phandle mediabay_ata;
 } of_shim_state_t;
 
@@ -239,11 +243,52 @@ out:
 }
 
 
+static quik_err_t
+parse_prom_flags(void)
+{
+   if (prom_flags & PROM_CLAIM_WORK_AROUND) {
+      (void) prom_getprop(prom_chosen, "mmu", &prom_mmu, sizeof(prom_mmu));
+      prom_memory = call_prom("open", 1, 1, "/memory");
+      if (prom_memory == (ihandle) -1) {
+         printk("couldm't open /memory for PROM_CLAIM_WORK_AROUND");
+         return ERR_OF_INIT_NO_MEMORY;
+      }
+   }
+
+   if (prom_flags & PROM_SHALLOW_SETPROP) {
+      prom_flags |= PROM_NEED_SHIM;
+   }
+
+   if (prom_flags & PROM_3400_HIDE_MEDIABAY_ATA) {
+      /*
+       * Only if mediabay is empty that we hide it.
+       */
+      if (call_prom("finddevice", 1, 1, PROM_3400_MEDIABAY_ATAPI) == (phandle) -1 &&
+          call_prom("finddevice", 1, 1, PROM_3400_MEDIABAY_ATA) == (phandle) -1) {
+         of_shim_state.mediabay_ata =
+            call_prom("finddevice", 1, 1, PROM_3400_MEDIABAY);
+         if (of_shim_state.mediabay_ata == (phandle) -1) {
+            prom_flags ^= PROM_3400_HIDE_MEDIABAY_ATA;
+         } else {
+            prom_flags |= PROM_NEED_SHIM;
+         }
+      }
+   }
+
+   if (prom_flags & PROM_NEED_SHIM) {
+      bi->flags |= SHIM_OF;
+   }
+
+   return ERR_NONE;
+}
+
+
 quik_err_t
 prom_init(void (*pp)(void *))
 {
    phandle oprom;
    char ver[64];
+   quik_err_t err;
 
    prom_entry = pp;
    bi->prom_entry  = (vaddr_t) pp;
@@ -280,19 +325,19 @@ prom_init(void (*pp)(void *))
 
    if (strcmp(ver, OF_VER_105) == 0) {
       prom_flags |= PROM_CLAIM_WORK_AROUND;
-
-      /* Not verified, but likely broken as well. */
-      prom_flags |= PROM_SHALLOW_SETPROP;
-   } else if (strcmp(ver, OF_VER_201) == 0) {
-
       /*
-       * Broken for 3400c, not Wallstreet.
+       * Not verified, but likely broken as well.
+       */
+      prom_flags |= PROM_SHALLOW_SETPROP;
+   } else if (strcmp(ver, OF_VER_20) == 0 ||
+              (strcmp(ver, OF_VER_201) == 0)) {
+      /*
+       * Broken for 6400, 3400c, not Wallstreet.
        * Possibly older than Wallstreet systems are affected.
        */
       prom_flags |= PROM_SHALLOW_SETPROP;
    } else if (strcmp(ver, OF_VER_3) == 0 ||
               strcmp(ver, OF_VER_NW)) {
-
       /*
        * All NewWorlds ar CHRP-like and need :0 to reference
        * the full device.
@@ -308,37 +353,14 @@ prom_init(void (*pp)(void *))
       prom_flags |= PROM_3400_HIDE_MEDIABAY_ATA;
    }
 
-   if (prom_flags & PROM_CLAIM_WORK_AROUND) {
-      (void) prom_getprop(prom_chosen, "mmu", &prom_mmu, sizeof(prom_mmu));
-      prom_memory = call_prom("open", 1, 1, "/memory");
-      if (prom_memory == (ihandle) -1) {
-         return ERR_OF_INIT_NO_MEMORY;
-      }
+   if (strcmp(ver, SYSTEM_6400) == 0) {
+      printk("PROM_NW_FULL_DISK workaround for Alchemy\n");
+      prom_flags |= PROM_NW_FULL_DISK;
    }
 
-   if (prom_flags & PROM_SHALLOW_SETPROP) {
-      prom_flags |= PROM_NEED_SHIM;
-   }
-
-   if (prom_flags & PROM_3400_HIDE_MEDIABAY_ATA) {
-
-      /*
-       * Only if mediabay is empty that we hide it.
-       */
-      if (call_prom("finddevice", 1, 1, PROM_3400_MEDIABAY_ATAPI) == (phandle) -1 &&
-          call_prom("finddevice", 1, 1, PROM_3400_MEDIABAY_ATA) == (phandle) -1) {
-         of_shim_state.mediabay_ata =
-            call_prom("finddevice", 1, 1, PROM_3400_MEDIABAY);
-         if (of_shim_state.mediabay_ata == (phandle) -1) {
-            prom_flags ^= PROM_3400_HIDE_MEDIABAY_ATA;
-         } else {
-            prom_flags |= PROM_NEED_SHIM;
-         }
-      }
-   }
-
-   if (prom_flags & PROM_NEED_SHIM) {
-      bi->flags |= SHIM_OF;
+   err = parse_prom_flags();
+   if (err != ERR_NONE) {
+      return err;
    }
 
    /* Run the preboot script if there is one. */
@@ -533,3 +555,30 @@ prom_open(char *device, ihandle *ih)
    *ih = c;
    return ERR_NONE;
 }
+
+
+static quik_err_t
+cmd_prom_flags(char *args)
+{
+   quik_err_t err;
+
+   if (strlen(args) == 0) {
+      printk("prom_flags = 0x%x, shim = %s\n",
+             prom_flags, bi->flags & SHIM_OF ? "yes" : "no");
+      return ERR_NONE;
+   }
+
+   prom_flags = strtol(args, NULL, 0);
+
+   err = parse_prom_flags();
+   if (err != ERR_NONE) {
+      return err;
+   }
+
+   printk("new prom_flags = 0x%x, shim = %s\n",
+          prom_flags, bi->flags & SHIM_OF ? "yes" : "no");
+
+   return ERR_NONE;
+}
+
+COMMAND(prom_flags, cmd_prom_flags, "show or set prom flags");

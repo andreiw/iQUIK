@@ -242,19 +242,9 @@ load_config(void)
 
 
 static quik_err_t
-cmd_shim(char *args)
-{
-   bi->flags |= SHIM_OF;
-   return ERR_NONE;
-}
-
-COMMAND(shim, cmd_shim, "force usage of OF shim");
-
-
-static quik_err_t
 cmd_debug(char *args)
 {
-   bi->flags |= DEBUG_BEFORE_BOOT;
+   bi->flags |= SHIM_OF | DEBUG_BEFORE_BOOT;
    return ERR_NONE;
 }
 
@@ -635,11 +625,3 @@ error:
    printk("Exiting on error: %r", err);
    prom_exit();
 }
-
-
-quik_err_t test_command(char *args)
-{
-  printk("just a test\n");
-  return ERR_NONE;
-}
-
