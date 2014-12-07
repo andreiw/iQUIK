@@ -420,30 +420,29 @@ get_load_paths(path_t **kernel,
       return err;
    }
 
-    /*
-     * In case get_params didn't set the device or partition,
-     * propagate from the default device path. get_params.
-     *
-     */
-    env_dev_update_from_default(&cur_dev);
+   /*
+    * In case get_params didn't set the device or partition,
+    * propagate from the default device path.
+    */
+   env_dev_update_from_default(&cur_dev);
 
-    err = file_path(kernel_spec,
-                    &cur_dev,
-                    kernel);
-    if (err != ERR_NONE) {
-       printk("Error parsing kernel path '%s': %r\n", kernel_spec, err);
-       return err;
-    }
+   err = file_path(kernel_spec,
+                   &cur_dev,
+                   kernel);
+   if (err != ERR_NONE) {
+      printk("Error parsing kernel path '%s': %r\n", kernel_spec, err);
+      return err;
+   }
 
-    /*
-     * If cur_dev is bogus, fill it with dev info
-     * from parsing the kernel path. This lets you
-     * be less verbose speccing out the initrd path.
-     */
-    if (env_dev_is_valid(&cur_dev) != ERR_NONE) {
-       env_dev_set_part(&cur_dev, (*kernel)->part);
-       cur_dev.device = (*kernel)->device;
-    }
+   /*
+    * If cur_dev is bogus, fill it with dev info
+    * from parsing the kernel path. This lets you
+    * be less verbose speccing out the initrd path.
+    */
+   if (env_dev_is_valid(&cur_dev) != ERR_NONE) {
+      env_dev_set_part(&cur_dev, (*kernel)->part);
+      cur_dev.device = (*kernel)->device;
+   }
 
    if (initrd_spec != NULL) {
       err = file_path(initrd_spec,

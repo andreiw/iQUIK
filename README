@@ -29,9 +29,10 @@ a number of important ways:
    * Preboot script support for rescue disks, install media.
 3) Better firmware support.
    * Works around OF 1.0.5 bugs
-   * Works around OF 2.0.1 setprop bugs
+   * Works around OF 2.0(.X) setprop bugs
      (i.e. the initrd not found bug)
    * Works around 3400c hangs with media bay without CDROM.
+   * NewWorld disk access support
 4) More maintainable
    * Doesn't need libext2fs
    * Builds with a recent toolchain (GCC 4.4, 4.8)
@@ -45,8 +46,9 @@ Meant for OldWorlds in general, it has only been tested on:
 1) PowerBook 3400c (OF 2.0.1, 603e)
 2) PowerBook Wallstreet II (PDQ) (OF 2.0.1, G3)
 3) UMAX StormSurge (OF 1.0.5, 604e)
-4) QEMU (OpenBIOS 1.1 r1272+).
-5) PowerBook 12'' 1.5GHz (OF 3, G4)
+4) Performa 6400 (OF 2.0, 603ev)
+5) QEMU (OpenBIOS 1.1 r1272+).
+6) PowerBook 12'' 1.5GHz (OF 3, G4)
 
 It would be nice to test with 1.1.2 and 2.4. See distrib/ for docs on getting
 to run on certain hardware (including qemu and NewWorlds, although iQUIK

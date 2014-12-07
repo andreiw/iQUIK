@@ -1,0 +1,17 @@
+iQUIK on a Performa 6400
+========================
+
+603ev and uses OpenFirmware 2.0
+
+It's an IDE system.
+
+You can boot from:
+* Floppy
+* ATA
+* CD boot is untested
+
+To boot from ATA, make sure disk is master (not cable-select)
+
+boot-device ata/ATA-Disk@0:0
+
+Follow the README.

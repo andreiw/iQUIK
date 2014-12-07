@@ -45,7 +45,6 @@ ihandle prom_memory;
  * Models to special-case.
  */
 #define SYSTEM_3400_2400  "AAPL,3400/2400"
-#define SYSTEM_WALLSTREET "AAPL,PowerBook1998"
 
 /* OF 1.0.5 claim bug. */
 #define PROM_CLAIM_WORK_AROUND      (1 << 1)
