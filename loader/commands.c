@@ -33,7 +33,7 @@ cmd_show_command(command_t *c)
 {
    table_print_t tp;
 
-   table_print_start(&tp, 2, 10);
+   table_print_start(&tp, 2, 16);
    table_print(&tp, c->name);
    printk("- ");
    table_print(&tp, c->desc);
@@ -82,7 +82,7 @@ cmd_show_commands(void)
   command_t *c = &_commands;
   table_print_t tp;
 
-  table_print_start(&tp, 4, 10);
+  table_print_start(&tp, 4, 16);
 
   printk("Available commands:\n");
   while (c < &_commands_end) {

@@ -31,34 +31,24 @@ env_dev_set_part(env_dev_t *dp, unsigned part)
 }
 
 quik_err_t
-env_dev_update_from_default(env_dev_t *cur_dev)
-{
-   if (!cur_dev->part_valid) {
-      if (bi->default_dev.part_valid) {
-         env_dev_set_part(cur_dev, bi->default_dev.part);
-      } else {
-         return ERR_ENV_DEFAULT_BAD;
-      }
-   }
-
-   if (cur_dev->device == NULL) {
-      if (bi->default_dev.device != NULL) {
-         cur_dev->device = bi->default_dev.device;
-      } else {
-         return ERR_ENV_DEFAULT_BAD;
-      }
-   }
-
-   return ERR_NONE;
-}
-
-quik_err_t
 env_dev_is_valid(env_dev_t *dp)
 {
    if (dp->device == NULL ||
        !dp->part_valid) {
       return ERR_ENV_CURRENT_BAD;
    }
+
+   return ERR_NONE;
+}
+
+quik_err_t
+env_dev_update_from_default(env_dev_t *cur_dev)
+{
+   if (env_dev_is_valid(&bi->default_dev) != ERR_NONE) {
+      return ERR_ENV_DEFAULT_BAD;
+   }
+
+   *cur_dev = bi->default_dev;
 
    return ERR_NONE;
 }
@@ -148,4 +138,3 @@ env_init(void)
 
    return ERR_NONE;
 }
-
