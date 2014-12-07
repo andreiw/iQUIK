@@ -46,7 +46,6 @@ ihandle prom_memory;
  */
 #define SYSTEM_3400_2400  "AAPL,3400/2400"
 #define SYSTEM_WALLSTREET "AAPL,PowerBook1998"
-#define SYSTEM_6400       "AAPL,e407"
 
 /* OF 1.0.5 claim bug. */
 #define PROM_CLAIM_WORK_AROUND      (1 << 1)
@@ -351,11 +350,6 @@ prom_init(void (*pp)(void *))
 
    if (strcmp(ver, SYSTEM_3400_2400) == 0) {
       prom_flags |= PROM_3400_HIDE_MEDIABAY_ATA;
-   }
-
-   if (strcmp(ver, SYSTEM_6400) == 0) {
-      printk("PROM_NW_FULL_DISK workaround for Alchemy\n");
-      prom_flags |= PROM_NW_FULL_DISK;
    }
 
    err = parse_prom_flags();

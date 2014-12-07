@@ -63,5 +63,11 @@ disk_read(ihandle dev,
    nr = (length_t) call_prom("read", 3, 1, dev,
                              buf, nbytes);
 
+   if (nr != nbytes) {
+      printk("Read error at offset %x%x (%u instead of %u)\n",
+             (uint32_t) (offset >> 32), (uint32_t) offset,
+             nr, nbytes);
+   }
+
    return nr;
 }
