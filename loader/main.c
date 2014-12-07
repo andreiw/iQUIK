@@ -52,9 +52,9 @@ maintabfunc(char *buf)
    }
 
    printk("\nYou can also type in custom image locations, like:\n");
-   printk("[device:][partno]/vmlinux\n");
-   printk("[device:][partno]/vmlinux -- kernel arguments\n");
-   printk("[device:][partno]/vmlinux [device:][partno]/initrd kernel arguments\n");
+   printk("[device:partno]/vmlinux\n");
+   printk("[device:partno]/vmlinux -- kernel arguments\n");
+   printk("[device:partno]/vmlinux [device:partno]/initrd kernel arguments\n");
 
    printk(PROMPT"%s", buf);
 }

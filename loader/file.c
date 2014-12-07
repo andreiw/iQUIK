@@ -159,6 +159,14 @@ file_path(char *pathspec,
       p->path++;
       p->device = pathspec;
 
+      if (strlen(p->device) == 0) {
+
+         /*
+          * Nothing before the colon...?
+          */
+         goto bad_path;
+      }
+
       n = strtol(p->path, &endp, 0);
       if (endp == p->path) {
 

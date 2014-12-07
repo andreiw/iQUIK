@@ -115,9 +115,9 @@ in your quik.conf, if any.
 
 You can also type in custom image locations, thus booting any arbitrary
 kernel with any initrd and any parameters, e.g.:
-       [device:][partno]/vmlinux
-       [device:][partno]/vmlinux -- kernel arguments
-       [device:][partno]/vmlinux [device:][partno]/initrd kernel arguments
+       [device:partno]/vmlinux
+       [device:partno]/vmlinux -- kernel arguments
+       [device:partno]/vmlinux [device:partno]/initrd kernel arguments
 
 
 Installing
@@ -231,6 +231,18 @@ boot: !ls /boot
 boot: !ls upper/pccard45,401@0:4/installer
 
 [ list files under /install on partition 4 of CF card in top PCMCIA slot ]
+
+boot: ata0/ata-disk@0:4/boot/vmlinux /boot/initrd.img root=/dev/sda4
+
+[ boot kernel with initrd and boot options ]
+
+boot: ata0/ata-disk@0:4/boot/vmlinux ata0/ata-disk@0:4/boot/initrd.img root=/dev/sda4
+
+[ boot kernel with initrd and boot options ]
+
+boot: ata0/ata-disk@0:4/boot/vmlinux -- root=/dev/sda4
+
+[ boot kernel with boot options ]
 
 boot: !cat /quik.conf
 
