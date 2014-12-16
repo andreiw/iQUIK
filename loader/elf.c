@@ -65,7 +65,9 @@ quik_err_t elf_parse(void *load_buf,
    len = 0;
 
    /*
-    * AndreiW: This logic needs some review...
+    * AndreiW: This logic needs some review... it should
+    * really be a generic ELF loader, and load_buf should be
+    * just the ELF header.
     */
    off = 0;
    linked_base = 0;
@@ -75,10 +77,11 @@ quik_err_t elf_parse(void *load_buf,
          continue;
       if (len == 0) {
          off = p->p_offset;
-         len = p->p_filesz;
+         len = p->p_memsz;
          linked_base = p->p_vaddr & ADDRMASK;
-      } else
-         len = p->p_offset + p->p_filesz - off;
+      } else {
+         len = p->p_offset + p->p_memsz - off;
+      }
    }
 
    if (len == 0) {
@@ -87,7 +90,8 @@ quik_err_t elf_parse(void *load_buf,
 
    entry = e->e_entry & ADDRMASK;
    if (len + off > load_buf_len) {
-      len = load_buf_len - off;
+      prom_ensure_claimed((vaddr_t *) (((vaddr_t) load_buf) + load_buf_len),
+                         (len + off) - load_buf_len);
    }
 
    image->buf = (vaddr_t) load_buf;
