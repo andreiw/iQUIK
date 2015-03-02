@@ -29,7 +29,7 @@
 #include "quik.h"
 #include "part.h"
 #include "disk.h"
-#include <asm/mac-part.h>
+#include <mac-part.h>
 
 static quik_err_t
 read_mac_partition(ihandle dev,

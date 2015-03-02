@@ -5,6 +5,9 @@
  * Copyright 1996 Paul Mackerras.
  */
 
+#ifndef QUIK_MAC_PART_H
+#define QUIK_MAC_PART_H
+
 #define MAC_PARTITION_MAGIC	0x504d
 
 /* type field value for A/UX or other Unix partitions */
@@ -46,3 +49,5 @@ struct mac_driver_desc {
     uint32_t	block_count;
     /* ... more stuff */
 };
+
+#endif /* QUIK_MAC_PART_H */

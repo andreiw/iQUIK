@@ -1,5 +1,6 @@
-        .globl  __sigsetjmp
-__sigsetjmp:
+#include "asm.h"
+
+_GLOBAL(__sigsetjmp)
         mflr    0
         stw     1,0(3)
         stw     2,4(3)
@@ -25,8 +26,7 @@ __sigsetjmp:
         li      3,0
         blr
 
-        .globl  longjmp
-longjmp:
+_GLOBAL(longjmp)
         cmpwi   0,4,0
         bne     1f
         li      4,1

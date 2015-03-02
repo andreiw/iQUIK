@@ -1,12 +1,13 @@
 #include <layout.h>
+#include "asm.h"
 
 .section ".start"
-.globl _start
 .globl _end
 .globl _stack_top
 .globl _bss_start
 .globl _bss_end
-_start:
+
+_GLOBAL(_start)
 
 /*
  * Ensure consistent I+D caches. We could

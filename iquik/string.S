@@ -1,6 +1,9 @@
+#include "asm.h"
+
 /*
  * String handling functions for PowerPC.
  *
+ * Copyright (C) 2014 Andrei Warkentin <andrey.warkentin@gmail.com>
  * Copyright (C) 1996 Paul Mackerras.
  *
  * This program is free software; you can redistribute it and/or
@@ -9,16 +12,7 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#define r0      0
-#define r3      3
-#define r4      4
-#define r5      5
-#define r6      6
-#define r7      7
-#define r8      8
-
-        .globl  strcpy
-strcpy:
+_GLOBAL(strcpy)
         addi    r5,r3,-1
         addi    r4,r4,-1
 1:      lbzu    r0,1(r4)
@@ -27,8 +21,7 @@ strcpy:
         bne     1b
         blr
 
-        .globl  strncpy
-strncpy:
+_GLOBAL(strncpy)
         cmpwi   0,r5,0
         beqlr
         mtctr   r5
@@ -40,8 +33,7 @@ strncpy:
         bdnzf   2,1b            /* dec ctr, branch if ctr != 0 && !cr0.eq */
         blr
 
-        .globl  strcat
-strcat:
+_GLOBAL(strcat)
         addi    r5,r3,-1
         addi    r4,r4,-1
 1:      lbzu    r0,1(r5)
@@ -54,8 +46,7 @@ strcat:
         bne     1b
         blr
 
-        .globl  strcmp
-strcmp:
+_GLOBAL(strcmp)
         addi    r5,r3,-1
         addi    r4,r4,-1
 1:      lbzu    r3,1(r5)
@@ -66,8 +57,7 @@ strcmp:
         beq     1b
         blr
 
-        .globl  strncmp
-strncmp:
+_GLOBAL(strncmp)
         cmpwi   0,r5,0
         addi    r6,r3,-1
         addi    r4,r4,-1
@@ -81,8 +71,7 @@ strncmp:
         bdnzt   2,1b            /* dec ctr, branch if ctr != 0 && cr0.eq */
         blr
 
-        .globl  strlen
-strlen:
+_GLOBAL(strlen)
         addi    r4,r3,-1
 1:      lbzu    r0,1(r4)
         cmpwi   0,r0,0
@@ -90,8 +79,7 @@ strlen:
         subf    r3,r3,r4
         blr
 
-        .globl  strchr
-strchr:
+_GLOBAL(strchr)
         addi    r3,r3,-1
 1:      lbzu    r0,1(r3)
         cmpw    0,r0,r4
@@ -101,8 +89,7 @@ strchr:
         li      r3,0
         blr
 
-        .globl  strrchr
-strrchr:
+_GLOBAL(strrchr)
         addi    r5,r3,-1
         li      r3,0
 1:      lbzu    r0,1(r5)
@@ -113,8 +100,7 @@ strrchr:
         mr      r3,r5
         b       1b
 
-        .globl  memset
-memset:
+_GLOBAL(memset)
         rlwimi  r4,r4,8,16,23
         rlwimi  r4,r4,16,0,15
         addi    r6,r3,-4
@@ -139,21 +125,18 @@ memset:
         bdnz    8b
         blr
 
-        .globl  bcopy
-bcopy:
+_GLOBAL(bcopy)
         mr      r6,r3
         mr      r3,r4
         mr      r4,r6
         b       memcpy
 
-        .globl  memmove
-memmove:
+_GLOBAL(memmove)
         cmplw   0,r3,r4
         bgt     backwards_memcpy
         /* fall through */
 
-        .globl  memcpy
-memcpy:
+_GLOBAL(memcpy)
         rlwinm. r7,r5,32-3,3,31         /* r0 = r5 >> 3 */
         addi    r6,r3,-4
         addi    r4,r4,-4
@@ -194,8 +177,7 @@ memcpy:
         mtctr   r7
         b       1b
 
-        .globl  backwards_memcpy
-backwards_memcpy:
+_GLOBAL(backwards_memcpy)
         rlwinm. r7,r5,32-3,3,31         /* r0 = r5 >> 3 */
         add     r6,r3,r5
         add     r4,r4,r5
@@ -231,8 +213,7 @@ backwards_memcpy:
         mtctr   r7
         b       1b
 
-        .globl  memcmp
-memcmp:
+_GLOBAL(memcmp)
         cmpwi   0,r5,0
         blelr
         mtctr   r5
@@ -244,8 +225,7 @@ memcmp:
         bdnzt   2,1b
         blr
         
-        .globl __bzero
-__bzero:
+_GLOBAL(__bzero)
         mr r5, r4
         li r4, 0
         b memset

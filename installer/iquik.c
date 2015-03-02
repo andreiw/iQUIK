@@ -36,7 +36,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <dirent.h>
-#include <asm/mac-part.h>
+#include <mac-part.h>
 #include <layout.h>
 #include <endian.h>
 
