@@ -4,6 +4,10 @@
 
 CFLAGS = -I../include -O2 -D__NO_STRING_INLINES -nostdlib -fno-builtin -Werror -Wall
 ASFLAGS=-D__ASSEMBLY__ -I../include
+
+#
+# -Ttext value must match ../include/layout.h.
+#
 LDFLAGS=-T ld.script -N -Ttext 0x3e0000
 NAME = iquik
 CC = $(CROSS)gcc

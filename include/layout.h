@@ -13,9 +13,10 @@
 #define VERSION        "3.0"
 
 /*
- * Preboot stuff can't be any lower than this address.
+ * First byte (BE) must be NUL, the rest is used
+ * to correctly position by the installer.
  */
-#define PREBOOT_BASE    0x3d0000
+#define PREBOOT_MAGIC   0x00B007ED
 
 /*
  * Boot code load address and max size.

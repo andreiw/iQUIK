@@ -25,10 +25,11 @@ SECTIONS
     *(COMMON)
     _bss_end = .;
 
-    . = ALIGN(4);
+    . = ALIGN(16);
     _stack_start = .;
     . += 4096;
     _stack_top = .;
+    *(.preboot)
   }
 
   _end = .;

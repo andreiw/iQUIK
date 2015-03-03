@@ -626,6 +626,12 @@ iquik_main(void *a1,
       printk("This firmware requires a shim to work around bugs\n");
    }
 
+   /* Run the preboot script if there is one. */
+   if (strlen(preboot_script) != 0) {
+      printk("Invoking preboot script...");
+      call_prom("interpret", 1, 1, preboot_script);
+   }
+
    malloc_init();
    disk_init(&bi);
    load_config(&bi);

@@ -1,4 +1,4 @@
-DIRS=	util iquik preboot installer
+DIRS=	util iquik installer
 .EXPORT_ALL_VARIABLES:
 
 all clean dep depend:
@@ -12,7 +12,6 @@ install:
 	install -d -m 755 $(DESTDIR)/usr/man/man8
 	install -s installer/iquik $(DESTDIR)/sbin
 	install -m 444 iquik/iquik.b $(DESTDIR)/boot
-	install -m 444 preboot/preboot.b $(DESTDIR)/boot
 	if [ -f $(DESTDIR)/etc/quik.conf ]; then :; \
 	  else set -x; install -m 644 etc/quik.conf $(DESTDIR)/etc; fi
 	install -m 444 man/quik.conf.5 $(DESTDIR)/usr/man/man5

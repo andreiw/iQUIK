@@ -42,7 +42,19 @@ _GLOBAL(_start)
         cmp     0,10,11
         bne     1b
 
-/* Load up an initial stack pointer */
+/*
+ * Load up an initial stack pointer. So
+ * the stack doesn't ruin the preboot_script
+ * area, skip the linkage area, while maintaining
+ * 16-byte alignment.
+ */
         lis     1,_stack_top@h
         ori     1,1,_stack_top@l
+        addi    1,1,-16
         b       iquik_main
+
+.section ".preboot"
+.global _preboot_script
+_preboot_script:
+	.long   PREBOOT_MAGIC
+

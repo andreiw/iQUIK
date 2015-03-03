@@ -218,6 +218,7 @@ void usage(char *s)
           " -b bblock    use bblock as boot code instead of /boot/iquik.b\n"
           " -d           install boot code to alternate device (e.g. /dev/fd0)\n"
           " -v           verbose mode\n"
+          " -p script    preboot script\n"
           " -T           test mode (no actual writes)\n"
           " -V           show version\n" ,s);
    exit(1);
@@ -226,15 +227,19 @@ void usage(char *s)
 
 void install_stage(char *device,
                    char *filename,
+                   char *preboot,
                    ssize_t *stage_size,
                    off_t doff)
 {
    char *buff;
    int rc;
    int fd;
+   FILE *fpp;
    FILE *fp;
    off_t off;
+   ssize_t code_size;
    struct stat st;
+   uint32_t magic;
 
    if (verbose) {
       printf("Writing iQUIK boot block to '%s'\n", device);
@@ -251,16 +256,59 @@ void install_stage(char *device,
    if (stat(filename, &st) < 0) {
       fatal("Couldn't stat '%s'", filename);
    }
-   *stage_size = st.st_size;
+
+   code_size = st.st_size;
+
+   if (preboot != NULL) {
+      if ((fpp = fopen(preboot, "r")) == NULL) {
+         fatal("Couldn't open preboot script '%s'", preboot);
+      }
+
+      if (stat(preboot, &st) < 0) {
+         fatal("Couldn't stat '%s'", preboot);
+      }
+
+      code_size -= sizeof(PREBOOT_MAGIC);
+      *stage_size = code_size + st.st_size + 1;
+  } else {
+      fpp = NULL;
+      *stage_size = code_size;
+   }
+
+   if (verbose) {
+      printf("Code size: %u\nStage size: %u bytes\n",
+             code_size, *stage_size);
+   }
 
    buff = malloc(*stage_size);
    if (buff == NULL) {
       fatal("Couldn't alloc %u to read '%s'", *stage_size, filename);
    }
 
-   rc = fread(buff, 1, *stage_size, fp);
+   rc = fread(buff, 1, code_size, fp);
    if (rc <= 0) {
       fatal("Couldn't read iQUIK boot code from '%s'", filename);
+   }
+
+   if (preboot != NULL) {
+      rc = fread(&magic, 1, sizeof(magic), fp);
+      if (rc <= 0) {
+         fatal("Couldn't read iQUIK boot code preboot signature from '%s'",
+               filename);
+      }
+
+      if (magic != PREBOOT_MAGIC) {
+         fatal("'%s' has bad preboot magic 0x%08x, preboot scripts unsupported\n",
+               filename, magic);
+      }
+
+      rc = fread(buff + code_size, 1, *stage_size - code_size - 1, fpp);
+      if (rc <= 0) {
+         fatal("Couldn't read preboot script from '%s'", preboot);
+      }
+
+
+      buff[*stage_size - 1] = '\0';
    }
 
    off = doff * 512;
@@ -272,12 +320,13 @@ void install_stage(char *device,
       fatal("Couldn't seek on '%s'", device);
    }
 
-   if (do_write(fd, buff, rc) != rc) {
+   if (do_write(fd, buff, *stage_size) != *stage_size) {
       fatal("Couldn't write iQUIK boot code to '%s'", device);
    }
 
    free(buff);
    close(fd);
+   fclose(fpp);
    fclose(fp);
 }
 
@@ -390,6 +439,7 @@ int main(int argc,char **argv)
    char *new_root = NULL;
    char *basedev = NULL;
    char *name = DFL_BOOTBLOCK;
+   char *preboot = NULL;
    int c;
    struct stat st1;
    int version = 0;
@@ -424,8 +474,11 @@ int main(int argc,char **argv)
       }
    }
 
-   while ((c = getopt(argc, argv, "b:d:r:vVTh")) != -1) {
+   while ((c = getopt(argc, argv, "p:b:d:r:vVTh")) != -1) {
       switch(c) {
+      case 'p':
+         preboot = optarg;
+         break;
       case 'b':
          name = optarg;
          break;
@@ -500,7 +553,7 @@ int main(int argc,char **argv)
    }
 
    read_sb(basedev, &part_index, &doff, &secsize);
-   install_stage(basedev, name, &stage_size, doff);
+   install_stage(basedev, name, preboot, &stage_size, doff);
    make_bootable(basedev,
                  secsize,
                  part_index,

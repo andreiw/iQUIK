@@ -36,6 +36,17 @@ typedef uint64_t offset_t;
 typedef uint32_t length_t;
 
 /*
+ * Preboot script can follow the executable if
+ * we are a raw binary loaded from the bootsector.
+ *
+ * Presumably if similar functionality is used on
+ * non-PMACs you can use a CHRP script around the
+ * ELF.
+ */
+extern uint32_t _preboot_script;
+#define preboot_script ((char *) &_preboot_script)
+
+/*
  * Loaded kernels described by this code.
  */
 typedef struct {
