@@ -56,11 +56,13 @@ is not meant for NewWorlds).
 
 Tested with 3.2 kernels and older.
 
-Also, see below Apple link for NVRAMRC patches necessary, as documentation
-under distrib/ is only for machines I have. Documentation and functionality
-patches welcome!
-
+Documentation under distrib/ is only for machines tested on. Apple
+NVRAMRC patches under distrib/Apple_nvramrc may be necessary for other
+machines. The patches are a direct mirror from
 http://www.opensource.apple.com/source/system_cmds/system_cmds-175/nvram.tproj/nvram/
+
+Documentation and functionality patches welcome!
+
 
 Prebuilts
 =========
