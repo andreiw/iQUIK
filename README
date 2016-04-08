@@ -25,6 +25,7 @@ a number of important ways:
    * Can boot from floppy (i.e. rescue disk).
    * Can boot from anything via partition zero
      (i.e. :0/%BOOT).
+   * Can boot as \\:TBXI or ELF on NewWorlds.
    * Symlink support, listing files, etc.
    * Preboot script support for rescue disks, install media.
 3) Better firmware support.
