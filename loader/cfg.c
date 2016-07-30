@@ -117,10 +117,12 @@ void cfg_warn (char *msg,...)
    printk (" near line %d in file %s\n", line_num, file_name);
 }
 
-inline int getc ()
+static inline int getc (void)
 {
-   if (currp == endp)
+   if (currp == endp) {
       return EOF;
+   }
+
    return *currp++;
 }
 
