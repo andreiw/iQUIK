@@ -568,7 +568,7 @@ iquik_main(void *a1,
    }
 
    printk("\niQUIK OldWorld Bootloader\n");
-   printk("Copyright (C) 2014 Andrei Warkentin <andrey.warkentin@gmail.com>\n");
+   printk("Copyright (C) 2016 Andrei Warkentin <andrey.warkentin@gmail.com>\n");
    if (bi->flags & SHIM_OF) {
       printk("This firmware requires a shim to work around bugs\n");
    }

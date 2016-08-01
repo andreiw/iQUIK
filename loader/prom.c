@@ -194,23 +194,32 @@ prom_shim(struct prom_args *args)
       if (strcmp(args->service, "getprop") == 0) {
          ihandle ih = (ihandle) args->args[0];
          char *name = (char *) args->args[1];
-         unsigned *place = (unsigned *) args->args[2];
-         unsigned *ret = (unsigned *) args->args[4];
+         uint32_t *place = (uint32_t *) args->args[2];
+         uint32_t size = (uint32_t) args->args[3];
+         uint32_t *ret = (uint32_t *) &args->args[4];
 
          if (ih != prom_chosen) {
             goto out;
          }
 
          if (strcmp(name, "linux,initrd-start") == 0) {
+           if (size == 8) {
+              *place++ = 0;
+           }
+
            *place = (uint32_t) bi->initrd_base;
          } else if (strcmp(name, "linux,initrd-end") == 0) {
+            if (size == 8) {
+              *place++ = 0;
+            }
+
            *place = (uint32_t) bi->initrd_base +
-               bi->initrd_len;
+              bi->initrd_len;
          } else {
             goto out;
          }
 
-         *ret = 0;
+         *ret = size;
          return;
       }
    }
@@ -248,7 +257,7 @@ parse_prom_flags(void)
       (void) prom_getprop(prom_chosen, "mmu", &prom_mmu, sizeof(prom_mmu));
       prom_memory = call_prom("open", 1, 1, "/memory");
       if (prom_memory == (ihandle) -1) {
-         printk("couldm't open /memory for PROM_CLAIM_WORK_AROUND");
+         printk("couldn't open /memory for PROM_CLAIM_WORK_AROUND");
          return ERR_OF_INIT_NO_MEMORY;
       }
    }

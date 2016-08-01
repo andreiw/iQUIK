@@ -1,7 +1,7 @@
 /*
  * Command handling.
  *
- * Copyright (C) 2013-2014 Andrei Warkentin <andrey.warkentin@gmail.com>
+ * Copyright (C) 2013-2016 Andrei Warkentin <andrey.warkentin@gmail.com>
  * Copyright (C) 1996 Maurizio Plaza
  * 1996 Jakub Jelinek
  *
