@@ -252,6 +252,18 @@ COMMAND(debug, cmd_debug, "show debug info");
 
 
 static quik_err_t
+cmd_old_kernel(char *args)
+{
+   bi->flags ^= BOOT_PRE_2_4;
+   printk("%s pre-2.4 kernel\n", (bi->flags & BOOT_PRE_2_4) ?
+          "Booting" : "Not booting");
+   return ERR_NONE;
+}
+
+
+COMMAND(old, cmd_old_kernel, "boot pre-2.4 kernel");
+
+static quik_err_t
 cmd_halt(char *args)
 {
    prom_pause(NULL);

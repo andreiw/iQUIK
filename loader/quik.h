@@ -28,6 +28,7 @@
 
 #define ALIGN_UP(addr, align) (((addr) + (align) - 1) & (~((align) - 1)))
 #define ALIGN(addr, align) (((addr) - 1) & (~((align) - 1)))
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
 #define SIZE_1M 0x100000
 #define SIZE_4K 0x1000
 #define NULL ((void *) 0)

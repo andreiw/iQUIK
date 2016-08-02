@@ -24,6 +24,9 @@
 #define prom_getprop(node, name, buf, len)                            \
    ((int)call_prom("getprop", 4, 1, (node), (name), (buf), (len)))
 
+#define prom_getproplen(node, name) \
+  ((int)call_prom("getproplen", 2, 1, (node), (name)))
+
 ihandle prom_stdin;
 ihandle prom_stdout;
 phandle prom_chosen;
@@ -64,6 +67,10 @@ ihandle prom_memory;
 /* NewWorld machines need :0 after device for full disk access */
 #define PROM_NW_FULL_DISK           (1 << 5)
 
+/* SMP machines may not report correct CPU id. */
+#define PROM_SMP_FIX                (1 << 6)
+#define PROM_SMP_PATH               "/PowerPC,604"
+
 static unsigned prom_flags = 0;
 static struct prom_args prom_args;
 
@@ -72,6 +79,11 @@ typedef struct of_shim_state {
     * For PROM_3400_HIDE_MEDIABAY_ATA.
     */
    phandle mediabay_ata;
+   /*
+    * For PROM_SMP_FIX.
+    */
+   unsigned cpu_count;
+   phandle cpu;
 } of_shim_state_t;
 
 static of_shim_state_t of_shim_state;
@@ -183,35 +195,47 @@ nbgetchar()
 static void
 prom_shim(struct prom_args *args)
 {
+   if (strcmp(args->service, "getprop") == 0) {
+      phandle ph = (phandle) args->args[0];
+      char *name = (char *) args->args[1];
+      uint32_t *place = (uint32_t *) args->args[2];
+      uint32_t size = (uint32_t) args->args[3];
+      uint32_t *ret = (uint32_t *) &args->args[4];
 
-   /*
-    * Linux kernels expect setprop to be deep, so
-    * the address passed can sometimes be on the stack,
-    * and initrd-start is one such affected variable,
-    * sadly enough.
-    */
-   if (prom_flags & PROM_SHALLOW_SETPROP) {
-      if (strcmp(args->service, "getprop") == 0) {
-         ihandle ih = (ihandle) args->args[0];
-         char *name = (char *) args->args[1];
-         uint32_t *place = (uint32_t *) args->args[2];
-         uint32_t size = (uint32_t) args->args[3];
-         uint32_t *ret = (uint32_t *) &args->args[4];
-
-         if (ih != prom_chosen) {
+      if (prom_flags & PROM_SMP_FIX &&
+          ph == of_shim_state.cpu) {
+         unsigned index = 0;
+         if (strcmp(name, "reg") != 0) {
             goto out;
          }
 
+         size = MIN(of_shim_state.cpu_count, size);
+         *ret = size;
+         while (size) {
+            *place = index++;
+            size -= 4;
+            place++;
+         }
+
+         return;
+      } else if (prom_flags & PROM_SHALLOW_SETPROP &&
+                 ph == prom_chosen) {
+        /*
+         * Linux kernels expect setprop to be deep, so
+         * the address passed can sometimes be on the stack,
+         * and initrd-start is one such affected variable,
+         * sadly enough.
+         */
          if (strcmp(name, "linux,initrd-start") == 0) {
+            if (size == 8) {
+               *place++ = 0;
+            }
+
+            *place = (uint32_t) bi->initrd_base;
+         } else if (strcmp(name, "linux,initrd-end") == 0) {
            if (size == 8) {
               *place++ = 0;
            }
-
-           *place = (uint32_t) bi->initrd_base;
-         } else if (strcmp(name, "linux,initrd-end") == 0) {
-            if (size == 8) {
-              *place++ = 0;
-            }
 
            *place = (uint32_t) bi->initrd_base +
               bi->initrd_len;
@@ -224,12 +248,10 @@ prom_shim(struct prom_args *args)
       }
    }
 
-   if (prom_flags & PROM_3400_HIDE_MEDIABAY_ATA &&
-       of_shim_state.mediabay_ata != (phandle) -1) {
+   if (prom_flags & PROM_3400_HIDE_MEDIABAY_ATA) {
       if (strcmp(args->service, "child") == 0 ||
           strcmp(args->service, "peer") == 0 ||
           strcmp(args->service, "parent") == 0) {
-
          prom_entry(args);
          if (args->args[args->nargs] ==
              of_shim_state.mediabay_ata) {
@@ -264,6 +286,23 @@ parse_prom_flags(void)
 
    if (prom_flags & PROM_SHALLOW_SETPROP) {
       prom_flags |= PROM_NEED_SHIM;
+   }
+
+   if (prom_flags & PROM_SMP_FIX) {
+      of_shim_state.cpu =
+         call_prom("finddevice", 1, 1,
+                   PROM_SMP_PATH);
+
+      of_shim_state.cpu_count = prom_getproplen(of_shim_state.cpu, "reg");
+
+      if (of_shim_state.cpu_count == 4) {
+         /*
+          * One cpu.
+          */
+         prom_flags ^= PROM_SMP_FIX;
+      } else {
+         prom_flags |= PROM_NEED_SHIM;
+      }
    }
 
    if (prom_flags & PROM_3400_HIDE_MEDIABAY_ATA) {
@@ -358,6 +397,11 @@ prom_init(void (*pp)(void *))
 
    if (strcmp(ver, SYSTEM_3400_2400) == 0) {
       prom_flags |= PROM_3400_HIDE_MEDIABAY_ATA;
+   }
+
+   if (call_prom("finddevice", 1, 1,
+                 PROM_SMP_PATH) != (phandle) -1) {
+      prom_flags |= PROM_SMP_FIX;
    }
 
    err = parse_prom_flags();
