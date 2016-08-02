@@ -56,7 +56,7 @@ It would be nice to test with 1.1.2 and 2.4. See distrib/ for docs on getting
 to run on certain hardware (including qemu and NewWorlds, although iQUIK
 is not meant for NewWorlds).
 
-Tested with 4,7 kernels and older.
+Tested with 4.7 kernels and older.
 
 - Sarge (yep! 2.4 kernel only).
 - Etch (yep!)
@@ -235,12 +235,16 @@ From OF prompt, you can boot it several ways.
 [ tells iQUIK to boot from a CF card in top PCMCIA slot with a custom
   quik.conf location on /dev/hdc4 ]
 
-Once you're at the boot prompt.
+Once you're at the boot prompt:
+
+boot: !dev device:part
+
+[ change the default device/partition - the default device/partition
+  are the ones used to load quik.conf ]
 
 boot: !ls
 
-[ list files on the default device/partition - the default device/partition
-  are the ones used to load quik.conf ]
+[ list files on the default device/partition ]
 
 boot: !ls /boot
 

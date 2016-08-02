@@ -1,20 +1,19 @@
 Summary: Disk bootstrap and installer for Linux/PPC
 Name: quik
-Version: 2.0
-Release: 0e
+Version: 0.99
+Release: 0
 Copyright: GPL
 Group: Base
-URL: http://www.ppc.kernel.org/
-Packager: Cort Dougan <cort@ppc.kernel.org>
-Source: ftp://ftp.ppc.kernel.org/pub/linuxppc/quik/quik-2.0.tar.gz
+URL: https://github.com/andreiw/iQUIK
+Packager: Andrei Warkentin <andrey.warkentin@gmail.com>
+Source: https://github.com/andreiw/iQUIK/archive/0.99.tar.gz
 BuildRoot: /tmp/quik-root
 ExclusiveArch: ppc
 
 %description
-The quik package provides the functionality necessary for booting a
-Linux/PPC PowerMac or CHRP system from disk.  It includes first and second
-stage disk bootstrap and a program for installing the first stage bootstrap
-on the root disk.
+The iQUIK package provides the functionality necessary for booting an
+OldWorld Linux/PPC PowerMac from disk or removeable media. It includes
+a boot block and a program for installing the boot block to a disk.
 
 %prep
 %setup
@@ -85,7 +84,6 @@ rm -rf $RPM_BUILD_ROOT
 
 %files
 /sbin/iquik
-/boot/preboot.b
 /boot/iquik.b
 %config /etc/quik.conf
 /usr/man/man5/quik.conf.5

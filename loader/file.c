@@ -200,6 +200,36 @@ bad_path:
 
 
 quik_err_t
+file_cmd_dev(char *p)
+{
+   quik_err_t err;
+   path_t *path = NULL;
+
+   /* Need a path. */
+   if (strlen(p) == 0) {
+      return ERR_CMD_BAD_PARAM;
+   }
+
+   err = file_path(p, &bi->default_dev, &path);
+   if (err != ERR_NONE) {
+      return err;
+   }
+
+   /*
+    * XXX: we end up leaking path. The real
+    * fix is to introduce env_dev_set and
+    * always free/strdup on changes.
+    */
+   bi->default_dev.device = path->device;
+   env_dev_set_part(&bi->default_dev, path->part);
+
+   return env_dev_is_valid(&bi->default_dev);
+}
+
+COMMAND(dev, file_cmd_dev, "change default device path given a device:part");
+
+
+quik_err_t
 file_cmd_cat(char *p)
 {
    char *message;
