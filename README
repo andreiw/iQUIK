@@ -92,6 +92,11 @@ If building on non-PowerPC hosts:
 
 $ CROSS=powerpc-linux-gnu- make
 
+You can also build with any of these options:
+$ make CONFIG_TINY=1    ...will create a smaller executable, for systems
+                        where booting via partition zero seems to fail.
+$ make CONFIG_MEMTEST=1 ...will add a !memtest command for simple testing.
+
 The boot flow
 =============
 

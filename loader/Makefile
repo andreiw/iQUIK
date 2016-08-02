@@ -5,8 +5,12 @@
 ENV_FILE=old_build_env
 -include $(ENV_FILE)
 
+BUILD_FLAGS =
 ifeq ($(CONFIG_TINY), 1)
-BUILD_FLAGS = -DCONFIG_TINY
+BUILD_FLAGS += -DCONFIG_TINY
+endif
+ifeq ($(CONFIG_MEMTEST), 1)
+BUILD_FLAGS += -DCONFIG_MEMTEST
 endif
 BUILD_ENV = "OLD_BUILD_FLAGS=$(BUILD_FLAGS)"
 
@@ -32,6 +36,10 @@ all: $(PRETARGET) $(NAME).b
 OBJ = crt0.o elf.o printf.o malloc.o main.o disk.o file.o \
       cfg.o prom.o cache.o string.o setjmp.o util.o part.o \
       crtsavres.o ext2fs.o env.o commands.o
+
+ifeq ($(CONFIG_MEMTEST), 1)
+OBJ += memtest.o
+endif
 
 %.o: %.c
 	$(CC) -c -MMD $(CFLAGS) $<
