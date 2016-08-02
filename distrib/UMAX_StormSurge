@@ -9,6 +9,9 @@ You can boot from:
 * Floppy
 * Internal SCSI MESH harddrive
 * CD boot is untested
+* OWC SATA adapter
+
+SMP works fine now.
 
 OF defaults to ttya (first serial port) for input-device and output-device. I don't
 like using serial, so I change mine to ADB keyboard and framebuffer.
@@ -23,5 +26,6 @@ To boot from MESH SCSI disk:
 
 boot-device /bandit/gc/mesh/sd@0:0
 
-Follow the README.
-
+Follow the README. Skip on Debian Wheezy. The later Jessie and earlier releases work fine.
+Wheezy dies with a bunch of scary OOM, Signal 11s and what looks like excessive memory
+corruption where none actually exists.

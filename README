@@ -11,14 +11,14 @@ are < 3.0.
 
 [ As a proud owner of a '97 PB 3400c. iQUIK has been my
   painful journey towards running first 2.4 with initrd,
-  and then 2.6 and 3.0 kernels ]
+  and then 2.6, 3.x and now 4.x kernels ]
 
 iQUIK differs from the plain-jane unmaintained QUIK in
 a number of important ways:
 
 1) Up to date.
    * Boots all kernels from 2.2 up.
-   * Initrd support from config file and UI.
+   * Initrd support from config file and CLI.
 2) Easier to use, harder to break.
    * Doesn't use block maps or the first stage loader,
      which would break if you moved anything around on FS
@@ -33,10 +33,11 @@ a number of important ways:
    * Works around OF 2.0(.X) setprop bugs
      (i.e. the initrd not found bug)
    * Works around 3400c hangs with media bay without CDROM.
+   * SMP support.
    * NewWorld disk access support
 4) More maintainable
    * Doesn't need libext2fs
-   * Builds with a recent toolchain (GCC 4.4, 4.8)
+   * Builds with a recent toolchain (GCC 4.4, 4.8, 5.4)
    * Cross compile support (on any endianness).
 
 
@@ -46,7 +47,7 @@ Support
 Meant for OldWorlds in general, it has only been tested on:
 1) PowerBook 3400c (OF 2.0.1, 603e)
 2) PowerBook Wallstreet II (PDQ) (OF 2.0.1, G3)
-3) UMAX StormSurge (OF 1.0.5, 604e)
+3) UMAX StormSurge (OF 1.0.5, 604e), including SMP.
 4) Performa 6400 (OF 2.0, 603ev)
 5) QEMU (OpenBIOS 1.1 r1272+).
 6) PowerBook 12'' 1.5GHz (OF 3, G4)
@@ -55,7 +56,14 @@ It would be nice to test with 1.1.2 and 2.4. See distrib/ for docs on getting
 to run on certain hardware (including qemu and NewWorlds, although iQUIK
 is not meant for NewWorlds).
 
-Tested with 3.2 kernels and older.
+Tested with 4,7 kernels and older.
+
+- Sarge (yep! 2.4 kernel only).
+- Etch (yep!)
+- Lenny (yep!)
+- Squeeze (yep!)
+- Wheezy (yep! but not on my UMAX, and probably a few other machines :-/)
+- Jessie (yep! but kernel has no MACE eth, using custom kernel)
 
 Documentation under distrib/ is only for machines tested on. Apple
 NVRAMRC patches under distrib/Apple_nvramrc may be necessary for other
@@ -269,6 +277,22 @@ boot: !halt
 boot: !debug
 
 [ will pause at important places during boot-up so you can track progress ]
+
+boot: !prom_flags
+
+[ will list current prom.c behavior flags, advanced debugging ]
+
+boot: !prom_flags 0xf00f
+
+[ will change the current prom.c behavior flags, advanced debugging ]
+
+boot: !memtest base size
+
+[ a rudimentary memory test, assuming iquik is built with support for it ]
+
+boot: !old
+
+[ switch to allow booting pre-2.4 kernels, akin to old-kernel conf file flag ]
 
 
 quik.conf differences
