@@ -43,13 +43,14 @@ a number of important ways:
 Support
 =======
 
-Meant for OldWorlds in general, it has only been tested on:
+Meant for OldWorlds in general, it has only been tested (by me) on:
 1) PowerBook 3400c (OF 2.0.1, 603e)
 2) PowerBook Wallstreet II (PDQ) (OF 2.0.1, G3)
 3) UMAX StormSurge (OF 1.0.5, 604e), including SMP.
 4) Performa 6400 (OF 2.0, 603ev)
 5) QEMU (OpenBIOS 1.1 r1272+).
 6) PowerBook 12'' 1.5GHz (OF 3, G4)
+7) iBook 12" (OF 3, G4)
 
 It would be nice to test with 1.1.2 and 2.4. See distrib/ for docs on getting
 to run on certain hardware (including qemu and NewWorlds, although iQUIK
