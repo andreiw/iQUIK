@@ -35,6 +35,7 @@ rd(void *buf, int len)
    exit(1);
 }
 
+int
 main(int ac, char **av)
 {
    unsigned nb, len, i;

@@ -37,9 +37,8 @@ a number of important ways:
    * NewWorld disk access support
 4) More maintainable
    * Doesn't need libext2fs
-   * Builds with a recent toolchain (GCC 4.4, 4.8, 5.4)
+   * Builds with a recent toolchain (gcc version 8.3.0 (Debian 8.3.0-2)
    * Cross compile support (on any endianness).
-
 
 Support
 =======
@@ -323,4 +322,4 @@ The next items I'll probably look at, are (in no order):
 Contact Info
 ============
 
-Andrei Warkentin (andrey.warkentin@gmail.com, andreiw@vmware.com)
+Andrei Warkentin (andreiw@mm.st)

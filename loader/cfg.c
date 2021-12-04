@@ -19,9 +19,8 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-/* NOT glibc's <setjmp.h> - see note in ./setjmp.h */
-#include "setjmp.h"
 #include "quik.h"
+#include "isetjmp.h"
 #include "prom.h"
 
 typedef enum {
