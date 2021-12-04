@@ -37,6 +37,10 @@ SECTIONS
     *(.preboot)
   }
 
+  /DISCARD/ : {
+    *(.eh_frame)
+  }
+
   _end = .;
 }
 
