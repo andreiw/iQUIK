@@ -76,8 +76,8 @@ Prebuilts
 =========
 
 I've checked-in the current prebuilts for iQUIK under distrib/.
-* 'iquik' is the installer, built under Wheezy.
 * 'iquik.b' is the iQUIK boot code
+* 'iquik.x64' is the installer, built on x64 Debian 10.6
 * 'iquik.conf' is pretty self-explanatory. It doesn't try to be
    exhaustive.
 * 'floppy.img' can be written out to a 1.44MB and booted via 'boot fd:0'.
