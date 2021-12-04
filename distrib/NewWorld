@@ -14,7 +14,11 @@ $ hattrib -t tbxi -c UNIX iquik.elf
 Of course, boot-file needs to point to the disk:part containing
 the configuration and boot files.
 
+You can also boot directly (here, from a USB2 drive).
+
+0 > boot ud:,\iquik.elf
+
 You can boot from:
-* USB
+* USB (avoid USB3 drives...they likely won't work!)
 * Internal IDE HD
 * CD
